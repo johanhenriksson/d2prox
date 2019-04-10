@@ -6,9 +6,9 @@ import (
 )
 
 type Client interface {
-	HandleBuffered([]byte) []byte
-	HandleClient([]byte) []byte
-	HandleServer([]byte) []byte
+	HandleBuffered(Packet) Packet
+	HandleClient(Packet) Packet
+	HandleServer(Packet) Packet
 
 	Connect(target string) error
 	Close()
@@ -40,17 +40,20 @@ func (c *ProxyClient) Connect(target string) error {
 
 	conn, err := net.Dial("tcp", target)
 	if err != nil {
-		return fmt.Errorf("Error connecting to realm server: %s", err)
+		return fmt.Errorf("Error connecting to target: %s", err)
 	}
 
 	c.server = conn
-	c.serverPackets = StreamReader("realm server", conn, c.errors)
+	c.serverPackets = StreamReader(conn, c.errors)
 
 	c.Proxy.Log("outbound socket connected to %s", target)
 
+	// send buffered packets
 	for _, packet := range c.outBuffer {
 		// send buffered packets
-		conn.Write(packet)
+		if _, err := conn.Write(packet); err != nil {
+			return err
+		}
 	}
 	c.outBuffer = nil
 
@@ -62,17 +65,12 @@ func (c *ProxyClient) OnConnect() {
 }
 
 func (c *ProxyClient) Close() {
-
+	c.Conn.Close()
+	c.server.Close()
+	c.server = nil
+	c.Proxy.Log("connection closed")
 }
 
-func (c *ProxyClient) HandleBuffered(packet []byte) []byte {
-	return packet
-}
-
-func (c *ProxyClient) HandleClient(packet []byte) []byte {
-	return packet
-}
-
-func (c *ProxyClient) HandleServer(packet []byte) []byte {
-	return packet
-}
+func (c *ProxyClient) HandleBuffered(packet Packet) Packet { return packet }
+func (c *ProxyClient) HandleClient(packet Packet) Packet   { return packet }
+func (c *ProxyClient) HandleServer(packet Packet) Packet   { return packet }

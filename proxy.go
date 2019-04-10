@@ -50,7 +50,7 @@ func (p *ProxyServer) Log(format string, args ...interface{}) {
 
 func (p *ProxyServer) Accept(conn net.Conn) {
 	errs := make(chan error)
-	clientPackets := StreamReader("realm client", conn, errs)
+	clientPackets := StreamReader(conn, errs)
 
 	base := &ProxyClient{
 		Proxy:         p,
@@ -69,13 +69,17 @@ func (p *ProxyServer) Accept(conn net.Conn) {
 		select {
 		case err := <-errs:
 			if err == nil {
-				p.Log("socket closed")
+				p.Log("Socket closed")
 			} else {
-				p.Log("read error: %s", err)
+				p.Log("Read error: %s", err)
 			}
 			return
 
-		case packet := <-base.clientPackets:
+		case packet, more := <-base.clientPackets:
+			if !more {
+				return
+			}
+
 			// skip 0x01 game byte
 			if packet[0] == 0x01 {
 				if len(packet) == 1 {
@@ -99,7 +103,11 @@ func (p *ProxyServer) Accept(conn net.Conn) {
 				}
 			}
 
-		case packet := <-base.serverPackets:
+		case packet, more := <-base.serverPackets:
+			if !more {
+				return
+			}
+
 			packet = c.HandleServer(packet)
 			if packet == nil {
 				continue // skip silenced packets

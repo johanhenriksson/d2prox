@@ -17,13 +17,13 @@ func NewGame() *GameProxy {
 	return &GameProxy{
 		ProxyServer{
 			Name:     "game",
-			OnAccept: AcceptGame,
+			OnAccept: acceptGame,
 			port:     GamePort,
 		},
 	}
 }
 
-func AcceptGame(server Proxy, base *ProxyClient) Client {
+func acceptGame(server Proxy, base *ProxyClient) Client {
 	return &GameClient{
 		ProxyClient: base,
 	}
@@ -40,14 +40,14 @@ func (c *GameClient) OnConnect() {
 	})
 }
 
-func (c *GameClient) HandleServer(packet []byte) []byte {
+func (c *GameClient) HandleServer(packet Packet) Packet {
 	fmt.Println("GS S->C")
 	fmt.Println(hex.Dump(packet))
 
 	return packet
 }
 
-func (c *GameClient) HandleBuffered(packet []byte) []byte {
+func (c *GameClient) HandleBuffered(packet Packet) Packet {
 	fmt.Println("GS C->S (B)")
 	fmt.Println(hex.Dump(packet))
 
@@ -72,7 +72,7 @@ func (c *GameClient) HandleBuffered(packet []byte) []byte {
 	return packet
 }
 
-func (c *GameClient) HandleClient(packet []byte) []byte {
+func (c *GameClient) HandleClient(packet Packet) Packet {
 	fmt.Println("GS C->S")
 	fmt.Println(hex.Dump(packet))
 

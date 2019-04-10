@@ -1,35 +1,33 @@
 package d2prox
 
 import (
-	"fmt"
 	"net"
 )
 
 const BufferSize = 1024
 
-type PacketTransform func([]byte) []byte
-type PacketStream chan []byte
+type PacketStream chan Packet
 
-func StreamReader(name string, sck net.Conn, errs chan error) PacketStream {
+func StreamReader(sck net.Conn, errs chan error) PacketStream {
 	buffer := make([]byte, 1024)
 	stream := make(PacketStream)
 	go func() {
+		defer close(stream)
+
 		for {
 			len, err := sck.Read(buffer)
 			if err != nil {
-				fmt.Println(name, "read error", err)
 				errs <- err
 				return
 			}
 			if len == 0 {
-				fmt.Println(name, "closed")
 				errs <- nil
 				return
 			}
 
 			packet := make([]byte, len)
 			copy(packet, buffer[:len])
-			stream <- packet
+			stream <- Packet(packet)
 		}
 	}()
 	return stream
