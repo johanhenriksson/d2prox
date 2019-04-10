@@ -1,10 +1,14 @@
 # d2prox
 
-Simple Diablo II proxy written in Go. It's currenly hardcoded for the European realm. Additionally it will only run on the same machine as the Diablo client, which makes it completely useless.
+Simple Diablo II proxy written in Go. Proxying allows the user to bypass IP rate limits set by battle.net. 
 
-It works by implements 3 separate proxies for Battle.net, the Diablo 2 Realm Server and the Diablo 2 Game Server. Application-level proxying is achieved by deep packet inspection and modification.
+*It's currenly hardcoded for the European realm. Additionally it will only run on the same machine as the Diablo client, which makes it completely useless. However, anyone who knows how to compile it should be able to configure it to work with any realm/ip.*
 
-Since the code allows inspection and modification of any D2 packet, it could theoretically be used for packet editing, packet filtering and implementing packet based hacks & bots.
+Since the code allows inspection and modification of any D2 packet, it could theoretically be used as a base for packet editing, packet filtering and implementing packet based hacks & bots.
+
+## Disclaimer
+
+This software is unfinished and not properly tested. It's only meant as a proof of concept. However, it does work and could be used with minimal modification. As far as I know, it should be undetectable. 
 
 ## How to use
 
@@ -13,6 +17,8 @@ Since the code allows inspection and modification of any D2 packet, it could the
 * Login and play
 
 ## Method
+
+It works by implementing 3 separate proxies for Battle.net, the Diablo 2 Realm Server and the Diablo 2 Game Server. Application-level proxying is achieved by deep packet inspection and modification.
 
 The basic idea is as follows:
 
