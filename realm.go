@@ -8,10 +8,12 @@ const RealmPort = 6113
 
 var realmTargets = make(map[string]string)
 
+// RealmProxy implements the realm proxy server
 type RealmProxy struct {
 	ProxyServer
 }
 
+// NewRealm creates a new realm proxy server
 func NewRealm() *RealmProxy {
 	return &RealmProxy{
 		ProxyServer{
@@ -28,10 +30,12 @@ func acceptRealm(server Proxy, base *ProxyClient) Client {
 	}
 }
 
+// RealmClient implements the realm proxy client
 type RealmClient struct {
 	*ProxyClient
 }
 
+// Connect to the target realm server
 func (c *RealmClient) Connect(target string) error {
 	// send 0x01 game byte on connect
 	// (its removed to simplify packet handling)
@@ -73,7 +77,7 @@ func (c *RealmClient) handleMcpStartup(packet McpStartupPacket) {
 
 	c.Proxy.Log("realm target: %s", target)
 	if err := c.Connect(target); err != nil {
-		c.Proxy.Log("Error connecting to realm target:", target)
+		c.Proxy.Log("error connecting to realm target:", target)
 		c.Proxy.Log("%s", err)
 		return
 	}
@@ -95,7 +99,7 @@ func (c *RealmClient) HandleServer(packet Packet) Packet {
 func (c *RealmClient) handleJoinGame(packet McpJoinGamePacket) {
 	if packet.Status() != JoinGameOk {
 		// join game failed, do nothing.
-		c.Proxy.Log("Failed to join game: %s", packet.Status())
+		c.Proxy.Log("failed to join game: %x", packet.Status())
 		return
 	}
 
@@ -109,7 +113,7 @@ func (c *RealmClient) handleJoinGame(packet McpJoinGamePacket) {
 	ip := packet.GameIP()
 	gameTargets[tokenStr] = ip
 
-	c.Proxy.Log("Intercepted MCP_JOINGAME. Game ip: %s, Token: %s", ip, tokenStr)
+	c.Proxy.Log("joining game. ip: %s, token: %s", ip, tokenStr)
 
 	// rewrite game server ip
 	packet[9] = 127

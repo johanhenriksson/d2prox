@@ -9,6 +9,7 @@ import (
 
 func main() {
 	fmt.Println("d2prox v0.1.0 by @johanhenriksson")
+	fmt.Println()
 
 	bnet := d2prox.NewBnet()
 	go d2prox.Serve(bnet)

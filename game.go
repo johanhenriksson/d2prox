@@ -41,15 +41,18 @@ func (c *GameClient) OnConnect() {
 }
 
 func (c *GameClient) HandleServer(packet Packet) Packet {
-	fmt.Println("GS S->C")
-	fmt.Println(hex.Dump(packet))
-
+	/*
+		fmt.Println("GS S->C")
+		fmt.Println(hex.Dump(packet))
+	*/
 	return packet
 }
 
 func (c *GameClient) HandleBuffered(packet Packet) Packet {
-	fmt.Println("GS C->S (B)")
-	fmt.Println(hex.Dump(packet))
+	/*
+		fmt.Println("GS C->S (B)")
+		fmt.Println(hex.Dump(packet))
+	*/
 
 	if packet[0] == 0x68 {
 		token := hex.EncodeToString(packet[1:7])
@@ -73,8 +76,10 @@ func (c *GameClient) HandleBuffered(packet Packet) Packet {
 }
 
 func (c *GameClient) HandleClient(packet Packet) Packet {
-	fmt.Println("GS C->S")
-	fmt.Println(hex.Dump(packet))
+	/*
+		fmt.Println("GS C->S")
+		fmt.Println(hex.Dump(packet))
+	*/
 
 	if packet[0] == 0xAF {
 		c.Proxy.Log("Blocked C->S packet 0xAF")

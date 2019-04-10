@@ -19,7 +19,7 @@ func (p Packet) BnetMsgID() byte  { return p[1] }
 type LogonRealmExPacket Packet
 
 func (p LogonRealmExPacket) RealmIP() string {
-	return fmt.Sprintf("%d.%d.%d.%d:6113", p[20], p[21], p[22], p[23])
+	return fmt.Sprintf("%d.%d.%d.%d:6112", p[20], p[21], p[22], p[23])
 }
 
 func (p LogonRealmExPacket) Token() string {
