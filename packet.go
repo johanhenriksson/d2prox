@@ -60,3 +60,15 @@ func (p McpJoinGamePacket) GameIP() string {
 func (p McpJoinGamePacket) Status() int {
 	return int(binary.LittleEndian.Uint32(p[17:21]))
 }
+
+//
+// D2GS_GAMELOGON
+// https://redux.bnetdocs.org/?op=packet&pid=131
+//
+
+type GsGameLogonPacket Packet
+
+// Token returns game hash + game token as a hexadecimal string
+func (p GsGameLogonPacket) Token() string {
+	return hex.EncodeToString(p[1:7])
+}

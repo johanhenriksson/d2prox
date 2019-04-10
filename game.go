@@ -1,10 +1,5 @@
 package d2prox
 
-import (
-	"encoding/hex"
-	"fmt"
-)
-
 const GamePort = 4000
 
 var gameTargets = make(map[string]string)
@@ -34,11 +29,16 @@ type GameClient struct {
 }
 
 func (c *GameClient) OnConnect() {
-	// we need to send some init stuff to the client first
+	// client wont send game info until the server sends D2GS_STARTLOGON (0xAF)
+	// we'll send it manually and silence it later.
 	c.Write([]byte{
-		0xAF, 0x00,
+		GsStartLogon, 0x00,
 	})
 }
+
+//
+// server -> client
+//
 
 func (c *GameClient) HandleServer(packet Packet) Packet {
 	/*
@@ -48,31 +48,44 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 	return packet
 }
 
+//
+// client -> server
+//
+
 func (c *GameClient) HandleBuffered(packet Packet) Packet {
 	/*
 		fmt.Println("GS C->S (B)")
 		fmt.Println(hex.Dump(packet))
 	*/
 
-	if packet[0] == 0x68 {
-		token := hex.EncodeToString(packet[1:7])
-		fmt.Println("Game token:", token)
-
-		target, exists := gameTargets[token]
-		if !exists {
-			fmt.Println("No game target found")
-			return packet
-		}
-
-		// one time use only
-		delete(gameTargets, token)
-
-		if err := c.Connect(target); err != nil {
-			fmt.Println("Game connect error:", err)
-		}
+	switch packet.GsMsgID() {
+	case GsGameLogon:
+		logon := GsGameLogonPacket(packet)
+		c.handleGameLogon(logon)
 	}
 
 	return packet
+}
+
+func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) {
+	token := packet.Token()
+
+	target, exists := gameTargets[token]
+	if !exists {
+		c.Proxy.Log("game target %s not found", token)
+		// todo: what to we dooo?
+		c.Close()
+		return
+	}
+
+	c.Proxy.Log("token %s proxied to game server %s", token, target)
+
+	// one time use only
+	delete(gameTargets, token)
+
+	if err := c.Connect(target); err != nil {
+		c.Proxy.Log("error connecting to game server: %s", err)
+	}
 }
 
 func (c *GameClient) HandleClient(packet Packet) Packet {
@@ -81,8 +94,9 @@ func (c *GameClient) HandleClient(packet Packet) Packet {
 		fmt.Println(hex.Dump(packet))
 	*/
 
-	if packet[0] == 0xAF {
-		c.Proxy.Log("Blocked C->S packet 0xAF")
+	switch packet.GsMsgID() {
+	case GsStartLogon:
+		// silence D2GS_STARTLOGON, since we send it manually in Connect()
 		return nil
 	}
 

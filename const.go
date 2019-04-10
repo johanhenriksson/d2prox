@@ -1,12 +1,29 @@
 package d2prox
 
-// C->S
+//
+// enums & constants
+//
+
+const JoinGameOk = 0x00
+
+//
+// battle.net server packets
+//
+
 const SidAuthInfo byte = 0x50
 const SidLogonResponse2 byte = 0x3A
-
-// S->C
 const SidLogonRealmEx byte = 0x3E
+
+//
+// realm server packets
+//
+
 const McpJoinGame byte = 0x04
 const McpStartup byte = 0x01
 
-const JoinGameOk = 0x00
+//
+// game server packets
+//
+
+const GsStartLogon byte = 0xAF
+const GsGameLogon byte = 0x68
