@@ -1,6 +1,6 @@
 # d2prox
 
-Simple Diablo II proxy written in Go. Proxying allows the user to bypass IP rate limits set by battle.net. 
+Diablo II proxy written in Go. Proxying allows the user to bypass IP rate limits set by battle.net. 
 
 *It's currenly hardcoded for the European realm. Additionally it will only run on the same machine as the Diablo client, which makes it completely useless. However, anyone who knows how to compile it should be able to configure it to work with any realm/ip.*
 
@@ -22,8 +22,9 @@ It works by implementing 3 separate proxies for Battle.net, the Diablo 2 Realm S
 
 The basic idea is as follows:
 
+* Configure the system to resolve ``_realm_.battle.net`` to the proxy ip
 * Client connects to our battle.net proxy
-* Once the player authenticates, battle.net sends the realm server ip to the client (``SID_REALMLOGONEX``). This packet is intercepted by the proxy, which replaces the ip with ``127.0.0.1``. The original realm server ip is stored in a map which correlates clients (using the MCP tokens) to realm server ips.
+* Once the player authenticates, battle.net sends the realm server ip to the client (``SID_REALMLOGONEX``). This packet is intercepted by the proxy, and replaced with ``127.0.0.1``. The original realm server ip is stored in a map which correlates clients (using the MCP tokens) to realm server ips.
 * Client connects to the realm server proxy
 * Client sends ``MCP_STARTUP`` containing its MCP token. The MCP token is used to retrieve the original realm server ip, and a connection is opened to it. From now on, all traffic is forwarded to the real realm server.
 * Client creates or joins a game. ``MCP_JOINGAME`` is intercepted, and the game server ip is also replaced with ``127.0.0.1``, and a token is used to map the client to this original ip.

@@ -47,17 +47,21 @@ func (c *BnetClient) Connect(target string) error {
 // server -> client
 //
 
+// HandleBuffered packet
 func (c *BnetClient) HandleBuffered(packet Packet) Packet {
-	// we can connect immediately!
+	// we always know the realm server ip, so we can connect immediately
+	// todo: rename OnConnect() to something better and put the call there
 
-	// europe ip hard coded atm
+	// todo: configurable battle.net server ip (this is EU)
 	if err := c.Connect("5.42.181.16:6112"); err != nil {
 		c.Proxy.Log("battle.net connect() error: %s", err)
+		c.Close()
 	}
 
 	return packet
 }
 
+// HandleServer packet
 func (c *BnetClient) HandleServer(packet Packet) Packet {
 	switch packet.BnetMsgID() {
 	case SidLogonRealmEx:
@@ -93,6 +97,7 @@ func (c *BnetClient) handleLogonRealmEx(packet LogonRealmExPacket) {
 // client -> server
 //
 
+// HandleClient packet
 func (c *BnetClient) HandleClient(packet Packet) Packet {
 	switch packet.BnetMsgID() {
 	case SidLogonResponse2:

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 )
 
+// RealmPort is the default realm server port
 const RealmPort = 6113
 
 var realmTargets = make(map[string]string)
@@ -50,6 +51,7 @@ func (c *RealmClient) Connect(target string) error {
 // client -> server messages
 //
 
+// HandleBuffered packet
 func (c *RealmClient) HandleBuffered(packet Packet) Packet {
 	switch packet.RealmMsgID() {
 	case McpStartup:
@@ -87,6 +89,7 @@ func (c *RealmClient) handleMcpStartup(packet McpStartupPacket) {
 // server -> client messages
 //
 
+// HandleServer packet
 func (c *RealmClient) HandleServer(packet Packet) Packet {
 	switch packet.RealmMsgID() {
 	case McpJoinGame:
