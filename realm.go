@@ -36,7 +36,12 @@ func (p *RealmProxy) Accept(conn net.Conn) {
 			client: conn,
 		},
 	}
-	HandleProxySession(p, c)
+	HandleProxySession(p, c, PacketReader(realmPacketLength), PacketReader(realmPacketLength))
+}
+
+// bnetPacketLength computes the length of the next packet in the buffer
+func realmPacketLength(buffer PacketBuffer, offset, length int) (int, error) {
+	return buffer.Uint16(offset), nil
 }
 
 // RealmClient implements the realm proxy client

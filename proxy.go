@@ -61,18 +61,18 @@ func (p *ProxyServer) Accept(conn net.Conn) {
 		Proxy:  p,
 		client: conn,
 	}
-	HandleProxySession(p, c)
+	HandleProxySession(p, c, StreamReader, StreamReader)
 }
 
 // HandleProxySession is the main
-func HandleProxySession(p Proxy, c Client) {
+func HandleProxySession(p Proxy, c Client, clientReader, serverReader PacketStreamReader) {
 	defer c.Close()
 
 	// fire client connected event
 	c.OnAccept()
 
 	errs := make(chan error)
-	clientPackets := StreamReader(c.Client(), errs)
+	clientPackets := clientReader(c.Client(), errs)
 
 	// while not connected to server, buffer up client messages
 	for c.Server() == nil {
@@ -96,9 +96,9 @@ func HandleProxySession(p Proxy, c Client) {
 	}
 
 	// fire server connected event
+	serverPackets := serverReader(c.Server(), errs)
 	c.OnConnect()
 
-	serverPackets := StreamReader(c.Server(), errs)
 	for {
 		select {
 		// abort on errors

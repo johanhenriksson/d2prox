@@ -1,7 +1,6 @@
 package d2prox
 
 import (
-	"fmt"
 	"net"
 )
 
@@ -11,39 +10,59 @@ const BufferSize = 1024
 // PacketStream is a channel for packets
 type PacketStream chan Packet
 
-//type PacketStreamReader func(net.Conn, chan error) PacketStream
+type PacketStreamReader func(net.Conn, chan error) PacketStream
 
-// StreamReader reads packets in a separate goroutine and writes them to a packet channel
-func StreamReader(sck net.Conn, errs chan error) PacketStream {
-	buffer := make([]byte, BufferSize)
-	stream := make(PacketStream)
+type PacketLengthFunc func(PacketBuffer, int, int) (int, error)
 
-	// ideally, this method should be replaced with 3 separate variations for each proxy type.
-	// this would allow it to use knowledge about the protocols to properly merge/split packets
-	// before passing them on to the handlers.
-	// to implement, a StreamReader function could be passed as an argument to HandleProxySession
+func PacketReader(lengthFunc PacketLengthFunc) PacketStreamReader {
+	return func(sck net.Conn, errs chan error) PacketStream {
+		buffer := make(PacketBuffer, BufferSize)
+		stream := make(PacketStream)
 
-	go func() {
-		defer close(stream)
+		go func() {
+			defer close(stream)
 
-		for {
-			len, err := sck.Read(buffer)
-			if err != nil {
-				errs <- err
-				return
+			remain := 0
+			for {
+				len, err := sck.Read(buffer[remain:])
+				if err != nil {
+					errs <- err
+					return
+				}
+
+				offset := 0
+				for offset < len {
+					plen, err := lengthFunc(buffer, offset, len)
+					if err != nil {
+						errs <- err
+						return
+					}
+
+					// check if we have all of it
+					if offset+plen > len {
+						break // we need more data
+					}
+
+					// extract and send packet
+					packet := buffer.Extract(offset, plen)
+					stream <- packet
+
+					// move offset forward
+					offset += plen
+				}
+
+				// keep remaining data
+				remain = len - offset
+				copy(buffer[:remain], buffer[offset:len])
 			}
+		}()
 
-			// does this ever happen?
-			if len == 0 {
-				errs <- fmt.Errorf("read 0 bytes")
-				return
-			}
-
-			packet := make([]byte, len)
-			copy(packet, buffer[:len])
-			stream <- Packet(packet)
-		}
-	}()
-
-	return stream
+		return stream
+	}
 }
+
+func bufferLengthFunc(buffer PacketBuffer, offset, length int) (int, error) {
+	return length, nil
+}
+
+var StreamReader = PacketReader(bufferLengthFunc)

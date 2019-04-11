@@ -1,7 +1,6 @@
 package d2prox
 
 import (
-	"encoding/hex"
 	"fmt"
 	"net"
 )
@@ -34,12 +33,16 @@ func (p *GameProxy) Accept(conn net.Conn) {
 			client: conn,
 		},
 	}
-	HandleProxySession(p, c)
+	HandleProxySession(p, c,
+		PacketReader(GsClientPacketLength),
+		PacketReader(GsServerPacketLength))
 }
 
 // GameClient implements the game server proxy client
 type GameClient struct {
 	*ProxyClient
+	LogonPacket Packet
+	LogonSent   bool
 }
 
 // OnAccept is fired immediately after a client connects to the proxy
@@ -47,6 +50,7 @@ type GameClient struct {
 func (c *GameClient) OnAccept() {
 	// client wont send game info until the server sends D2GS_STARTLOGON (0xAF)
 	// we'll send it manually and silence it later.
+	fmt.Println("sent fake D2GS_STARTLOGON")
 	c.WriteClient(Packet{GsStartLogon, 0x00})
 }
 
@@ -56,8 +60,12 @@ func (c *GameClient) OnAccept() {
 
 // HandleServer packets
 func (c *GameClient) HandleServer(packet Packet) Packet {
-	fmt.Println("GS S->C")
-	fmt.Println(hex.Dump(packet))
+	switch packet.GsMsgID() {
+	case GsStartLogon:
+		// silence D2GS_STARTLOGON, since we send it manually in Connect()
+		c.Proxy.Log("Compression mode:", packet[1])
+		return nil
+	}
 	return packet
 }
 
@@ -67,15 +75,11 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 
 // HandleBuffered packets
 func (c *GameClient) HandleBuffered(packet Packet) Packet {
-	fmt.Println("GS C->S (B)")
-	fmt.Println(hex.Dump(packet))
-
 	switch packet.GsMsgID() {
 	case GsGameLogon:
 		logon := GsGameLogonPacket(packet)
 		return Packet(c.handleGameLogon(logon))
 	}
-
 	return packet
 }
 
@@ -100,6 +104,7 @@ func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) GsGameLogonPacket
 	// manually buffer packet so that it will be available on connect.
 	// this packet will be silenced to avoid possible duplication
 	c.BufferPacket(Packet(packet))
+	//c.LogonPacket = Packet(packet)
 
 	// connect to target game server
 	if err := c.Connect(target); err != nil {
@@ -112,15 +117,5 @@ func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) GsGameLogonPacket
 
 // HandleClient packets
 func (c *GameClient) HandleClient(packet Packet) Packet {
-	fmt.Println("GS C->S")
-	fmt.Println(hex.Dump(packet))
-
-	switch packet.GsMsgID() {
-	case GsStartLogon:
-		// silence D2GS_STARTLOGON, since we send it manually in Connect()
-		fmt.Println("Silenced D2GS_STARTLOGON")
-		return nil
-	}
-
 	return packet
 }

@@ -36,7 +36,17 @@ func (p *BnetProxy) Accept(conn net.Conn) {
 		},
 		Bnet: p,
 	}
-	HandleProxySession(p, c)
+	HandleProxySession(p, c, PacketReader(bnetPacketLength), PacketReader(bnetPacketLength))
+}
+
+// bnetPacketLength computes the length of the next packet in the buffer
+func bnetPacketLength(buffer PacketBuffer, offset, length int) (int, error) {
+	// packets should start with 0xFF
+	if buffer.Byte(offset) != 0xFF {
+		return 0, fmt.Errorf("Expected packet to start with 0xFF")
+	}
+	// return packet length
+	return buffer.Uint16(offset + 2), nil
 }
 
 // BnetClient is the battle.net proxy client implementation
