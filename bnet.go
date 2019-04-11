@@ -2,6 +2,7 @@ package d2prox
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/johanhenriksson/d2prox/ip"
 )
@@ -19,53 +20,47 @@ type BnetProxy struct {
 func NewBnet(hostname string) *BnetProxy {
 	return &BnetProxy{
 		ProxyServer: ProxyServer{
-			Name:     "bnet",
-			OnAccept: acceptBnet,
-			port:     BnetPort,
+			Name: "bnet",
+			port: BnetPort,
 		},
 		RealmHost: hostname,
 	}
 }
 
-func acceptBnet(server Proxy, base *ProxyClient) Client {
-	return &BnetClient{
-		ProxyClient: base,
+// Accept a new connection
+func (p *BnetProxy) Accept(conn net.Conn) {
+	c := &BnetClient{
+		ProxyClient: &ProxyClient{
+			Proxy:  p,
+			client: conn,
+		},
+		Bnet: p,
 	}
+	HandleProxySession(p, c)
 }
 
 // BnetClient is the battle.net proxy client implementation
 type BnetClient struct {
 	*ProxyClient
+	Bnet        *BnetProxy
 	AccountName string
 	Token       string
 }
 
-// OnConnect is fired immediately after a client connects to the proxy
+// OnAccept is fired immediately after a client connects to the proxy
 // Should only be called by the server Accept() function
-func (c *BnetClient) OnConnect() {
+func (c *BnetClient) OnAccept() {
 	// read the game byte 0x01 and put it on the output buffer
 	// this simplifies handling of the first packet
-	b := []byte{0}
-	c.Read(b)
-	c.ProxyClient.outBuffer = [][]byte{b}
-}
-
-//
-// server -> client
-//
-
-// HandleBuffered packet
-func (c *BnetClient) HandleBuffered(packet Packet) Packet {
-	// we know the realm server ip, so we can connect immediately
-	// todo: rename OnConnect() to something better and put the call there
-
-	bnet := c.Proxy.(*BnetProxy)
+	b := Packet{0}
+	c.Client().Read(b)
+	c.BufferPacket(b)
 
 	// todo: configurable realm
 	// resolve battle.net server ip using external dns (in case the hosts file is modified)
-	bnetIP, err := ip.ResolveHost(bnet.RealmHost)
+	bnetIP, err := ip.ResolveHost(c.Bnet.RealmHost)
 	if err != nil {
-		c.Proxy.Log("Unable to resovle battle.net hostname '%s': %s", bnet.RealmHost, err)
+		c.Proxy.Log("Unable to resovle battle.net hostname '%s': %s", c.Bnet.RealmHost, err)
 	}
 
 	// connect to battle.net server
@@ -74,9 +69,11 @@ func (c *BnetClient) HandleBuffered(packet Packet) Packet {
 		c.Proxy.Log("battle.net connect() error: %s", err)
 		c.Close()
 	}
-
-	return packet
 }
+
+//
+// server -> client
+//
 
 // HandleServer packet
 func (c *BnetClient) HandleServer(packet Packet) Packet {

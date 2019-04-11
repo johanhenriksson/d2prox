@@ -7,54 +7,66 @@ import (
 
 // Client describes a proxy session implementation
 type Client interface {
+	Client() net.Conn
+	Server() net.Conn
+
+	Close()
+	Connect(target string) error
+	WriteClient(Packet) error
+	WriteServer(Packet) error
+
+	BufferPacket(Packet)
 	HandleBuffered(Packet) Packet
 	HandleClient(Packet) Packet
 	HandleServer(Packet) Packet
 
-	Connect(target string) error
-	Close()
-	Connected() bool
-
+	OnAccept()
 	OnConnect()
 }
 
 // ProxyClient represents a generic proxy session
 type ProxyClient struct {
-	net.Conn
-	Proxy         Proxy
-	outBuffer     [][]byte
-	server        net.Conn
-	errors        chan error
-	clientPackets PacketStream
-	serverPackets PacketStream
+	Proxy     Proxy
+	outBuffer []Packet
+	client    net.Conn
+	server    net.Conn
 }
 
-// Connected returns true if the proxy session is connected to the remote server
-func (c *ProxyClient) Connected() bool {
-	return c.server != nil
+func (c *ProxyClient) Client() net.Conn { return c.client }
+func (c *ProxyClient) Server() net.Conn { return c.server }
+
+func (c *ProxyClient) WriteClient(p Packet) error {
+	_, err := c.client.Write(p)
+	return err
+}
+
+func (c *ProxyClient) WriteServer(p Packet) error {
+	_, err := c.server.Write(p)
+	return err
+}
+
+func (c *ProxyClient) BufferPacket(p Packet) {
+	c.outBuffer = append(c.outBuffer, p)
 }
 
 // Connect to a remote server. Will automatically send buffered packets once connected.
 func (c *ProxyClient) Connect(target string) error {
-	if c.Connected() {
+	if c.server != nil {
 		return nil
 	}
 
-	c.Proxy.Log("connecting to %s", target)
-
 	conn, err := net.Dial("tcp", target)
 	if err != nil {
-		return fmt.Errorf("Error connecting to target: %s", err)
+		return fmt.Errorf("error connecting to target: %s", err)
 	}
 
 	c.server = conn
-	c.serverPackets = StreamReader(conn, c.errors)
-
 	c.Proxy.Log("outbound socket connected to %s", target)
 
 	// send buffered packets
 	for _, packet := range c.outBuffer {
 		// send buffered packets
+		fmt.Println("write buffered packet len", len(packet))
 		if _, err := conn.Write(packet); err != nil {
 			return err
 		}
@@ -64,15 +76,19 @@ func (c *ProxyClient) Connect(target string) error {
 	return nil
 }
 
-// OnConnect is fired immediately after a client connects to the proxy
+// OnAccept is fired immediately after a client connects to the proxy
 // Should only be called by the server Accept() function
+func (c *ProxyClient) OnAccept() {}
+
+// OnConnect is fired immediately after a connection to the remote server is established
+// Should only be called by the proxy session handler
 func (c *ProxyClient) OnConnect() {}
 
 // Close the proxy session
 func (c *ProxyClient) Close() {
-	if c.Conn != nil {
-		c.Conn.Close()
-		c.Conn = nil
+	if c.client != nil {
+		c.client.Close()
+		c.client = nil
 	}
 	if c.server != nil {
 		c.server.Close()

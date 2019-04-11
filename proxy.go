@@ -3,6 +3,7 @@ package d2prox
 import (
 	"fmt"
 	"net"
+	"time"
 )
 
 // Proxy describes the base proxy server implementation
@@ -56,22 +57,51 @@ func (p *ProxyServer) Log(format string, args ...interface{}) {
 
 // Accept and handle a proxy session. Should be called as a goroutine
 func (p *ProxyServer) Accept(conn net.Conn) {
-	errs := make(chan error)
-	clientPackets := StreamReader(conn, errs)
-
-	base := &ProxyClient{
-		Proxy:         p,
-		Conn:          conn,
-		errors:        errs,
-		clientPackets: clientPackets,
+	c := &ProxyClient{
+		Proxy:  p,
+		client: conn,
 	}
+	HandleProxySession(p, c)
+}
 
-	c := p.OnAccept(p, base)
-
-	c.OnConnect()
-
+func HandleProxySession(p Proxy, c Client) {
 	defer c.Close()
 
+	// fire client connected event
+	c.OnAccept()
+
+	errs := make(chan error)
+	clientPackets := StreamReader(c.Client(), errs)
+
+	// while not connected to server, buffer up client messages
+	for c.Server() == nil {
+		select {
+		// abort on errors
+		case err := <-errs:
+			if err != nil {
+				p.Log("Read error: %s", err)
+			}
+			return
+
+		// receive client -> server packets
+		case packet, more := <-clientPackets:
+			if !more {
+				return
+			}
+			packet = c.HandleBuffered(packet)
+			if packet != nil {
+				c.BufferPacket(packet)
+			}
+
+		case <-time.After(100 * time.Millisecond):
+			// periodic timeout to check if we've connected to the server
+		}
+	}
+
+	// fire server connected event
+	c.OnConnect()
+
+	serverPackets := StreamReader(c.Server(), errs)
 	for {
 		select {
 		// abort on errors
@@ -82,31 +112,24 @@ func (p *ProxyServer) Accept(conn net.Conn) {
 			return
 
 		// receive client -> server packets
-		case packet, more := <-base.clientPackets:
+		case packet, more := <-clientPackets:
 			if !more {
 				return
 			}
 
-			if !c.Connected() {
-				// store packets in a buffer until the remote is connected
-				// handle them separately. buffered packets cannot be easily silenced
-				base.outBuffer = append(base.outBuffer, packet)
-				c.HandleBuffered(packet)
-			} else {
-				packet = c.HandleClient(packet)
-				if packet == nil {
-					continue // skip silenced packets
-				}
+			packet = c.HandleClient(packet)
+			if packet == nil {
+				continue // skip silenced packets
+			}
 
-				// forward to remote server
-				if _, err := base.server.Write(packet); err != nil {
-					p.Log("server: packet write failed")
-					return
-				}
+			// forward to remote server
+			if err := c.WriteServer(packet); err != nil {
+				p.Log("server: packet write failed")
+				return
 			}
 
 		// receive server -> client packets
-		case packet, more := <-base.serverPackets:
+		case packet, more := <-serverPackets:
 			if !more {
 				return
 			}
@@ -117,7 +140,7 @@ func (p *ProxyServer) Accept(conn net.Conn) {
 			}
 
 			// forward to client
-			if _, err := base.Write(packet); err != nil {
+			if err := c.WriteClient(packet); err != nil {
 				p.Log("client: packet write failed")
 				return
 			}

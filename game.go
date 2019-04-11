@@ -3,6 +3,7 @@ package d2prox
 import (
 	"encoding/hex"
 	"fmt"
+	"net"
 )
 
 // GamePort is the default game server port
@@ -19,17 +20,21 @@ type GameProxy struct {
 func NewGame() *GameProxy {
 	return &GameProxy{
 		ProxyServer{
-			Name:     "game",
-			OnAccept: acceptGame,
-			port:     GamePort,
+			Name: "game",
+			port: GamePort,
 		},
 	}
 }
 
-func acceptGame(server Proxy, base *ProxyClient) Client {
-	return &GameClient{
-		ProxyClient: base,
+// Accept a new connection
+func (p *GameProxy) Accept(conn net.Conn) {
+	c := &GameClient{
+		ProxyClient: &ProxyClient{
+			Proxy:  p,
+			client: conn,
+		},
 	}
+	HandleProxySession(p, c)
 }
 
 // GameClient implements the game server proxy client
@@ -37,14 +42,12 @@ type GameClient struct {
 	*ProxyClient
 }
 
-// OnConnect is fired immediately after a client connects to the proxy
+// OnAccept is fired immediately after a client connects to the proxy
 // Should only be called by the server Accept() function
-func (c *GameClient) OnConnect() {
+func (c *GameClient) OnAccept() {
 	// client wont send game info until the server sends D2GS_STARTLOGON (0xAF)
 	// we'll send it manually and silence it later.
-	c.Write([]byte{
-		GsStartLogon, 0x00,
-	})
+	c.WriteClient(Packet{GsStartLogon, 0x00})
 }
 
 //
@@ -70,13 +73,13 @@ func (c *GameClient) HandleBuffered(packet Packet) Packet {
 	switch packet.GsMsgID() {
 	case GsGameLogon:
 		logon := GsGameLogonPacket(packet)
-		c.handleGameLogon(logon)
+		return Packet(c.handleGameLogon(logon))
 	}
 
 	return packet
 }
 
-func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) {
+func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) GsGameLogonPacket {
 	// the D2GS_GAMELOGON packet contains the token data we need to look up the
 	// cached game server ip stored by the realm server proxy. once we have it, we
 	// can connect to the game server.
@@ -88,11 +91,15 @@ func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) {
 		// we dont have it - drop the client
 		c.Proxy.Log("game target %s not found", token)
 		c.Close()
-		return
+		return nil
 	}
 
 	// one time use only - delete token/target pair from cache
 	delete(gameTargets, token)
+
+	// manually buffer packet so that it will be available on connect.
+	// this packet will be silenced to avoid possible duplication
+	c.BufferPacket(Packet(packet))
 
 	// connect to target game server
 	if err := c.Connect(target); err != nil {
@@ -100,6 +107,7 @@ func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) {
 	}
 
 	c.Proxy.Log("token %s proxied to game server %s", token, target)
+	return nil
 }
 
 // HandleClient packets

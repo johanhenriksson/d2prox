@@ -3,6 +3,7 @@ package d2prox
 import (
 	"encoding/hex"
 	"fmt"
+	"net"
 
 	"github.com/johanhenriksson/d2prox/ip"
 )
@@ -21,17 +22,21 @@ type RealmProxy struct {
 func NewRealm() *RealmProxy {
 	return &RealmProxy{
 		ProxyServer{
-			Name:     "rlmd",
-			OnAccept: acceptRealm,
-			port:     RealmPort,
+			Name: "rlmd",
+			port: RealmPort,
 		},
 	}
 }
 
-func acceptRealm(server Proxy, base *ProxyClient) Client {
-	return &RealmClient{
-		ProxyClient: base,
+// Accept a new connection
+func (p *RealmProxy) Accept(conn net.Conn) {
+	c := &RealmClient{
+		ProxyClient: &ProxyClient{
+			Proxy:  p,
+			client: conn,
+		},
 	}
+	HandleProxySession(p, c)
 }
 
 // RealmClient implements the realm proxy client
@@ -41,12 +46,12 @@ type RealmClient struct {
 
 // OnConnect is fired immediately after a client connects to the proxy
 // Should only be called by the server Accept() function
-func (c *RealmClient) OnConnect() {
+func (c *RealmClient) OnAccept() {
 	// read the game byte 0x01 and put it on the output buffer
 	// this simplifies handling of the first packet
-	b := []byte{0}
-	c.Read(b)
-	c.ProxyClient.outBuffer = [][]byte{b}
+	b := Packet{0}
+	c.Client().Read(b)
+	c.BufferPacket(b)
 }
 
 //
@@ -77,8 +82,13 @@ func (c *RealmClient) handleMcpStartup(packet McpStartupPacket) {
 	}
 
 	// clear target
-	//delete(realmTargets, token)
+	delete(realmTargets, token)
 
+	// manually buffer packet so that it will be available on connect.
+	// this packet will be silenced to avoid possible duplication
+	c.BufferPacket(Packet(packet))
+
+	// connect to realm server
 	c.Proxy.Log("realm target: %s", target)
 	if err := c.Connect(target); err != nil {
 		c.Proxy.Log("error connecting to realm target:", target)
