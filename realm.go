@@ -2,6 +2,9 @@ package d2prox
 
 import (
 	"encoding/hex"
+	"fmt"
+
+	"github.com/johanhenriksson/d2prox/ip"
 )
 
 // RealmPort is the default realm server port
@@ -18,7 +21,7 @@ type RealmProxy struct {
 func NewRealm() *RealmProxy {
 	return &RealmProxy{
 		ProxyServer{
-			Name:     "realm",
+			Name:     "rlmd",
 			OnAccept: acceptRealm,
 			port:     RealmPort,
 		},
@@ -36,15 +39,14 @@ type RealmClient struct {
 	*ProxyClient
 }
 
-// Connect to the target realm server
-func (c *RealmClient) Connect(target string) error {
-	// send 0x01 game byte on connect
-	// (its removed to simplify packet handling)
-	c.ProxyClient.outBuffer = append(
-		[][]byte{[]byte{0x01}},
-		c.ProxyClient.outBuffer...)
-
-	return c.ProxyClient.Connect(target)
+// OnConnect is fired immediately after a client connects to the proxy
+// Should only be called by the server Accept() function
+func (c *RealmClient) OnConnect() {
+	// read the game byte 0x01 and put it on the output buffer
+	// this simplifies handling of the first packet
+	b := []byte{0}
+	c.Read(b)
+	c.ProxyClient.outBuffer = [][]byte{b}
 }
 
 //
@@ -75,7 +77,7 @@ func (c *RealmClient) handleMcpStartup(packet McpStartupPacket) {
 	}
 
 	// clear target
-	delete(realmTargets, token)
+	//delete(realmTargets, token)
 
 	c.Proxy.Log("realm target: %s", target)
 	if err := c.Connect(target); err != nil {
@@ -113,14 +115,13 @@ func (c *RealmClient) handleJoinGame(packet McpJoinGamePacket) {
 	tokenStr := hex.EncodeToString(token)
 
 	// store game target
-	ip := packet.GameIP()
-	gameTargets[tokenStr] = ip
+	gameIP := packet.GameIP()
+	target := fmt.Sprintf("%s:%d", gameIP, GamePort)
+	gameTargets[tokenStr] = target
 
-	c.Proxy.Log("joining game. ip: %s, token: %s", ip, tokenStr)
+	c.Proxy.Log("joining game. ip: %s, token: %s", gameIP, tokenStr)
 
 	// rewrite game server ip
-	packet[9] = 127
-	packet[10] = 0
-	packet[11] = 0
-	packet[12] = 1
+	proxyIP := ip.Public()
+	packet.SetGameIP(proxyIP)
 }

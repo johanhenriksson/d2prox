@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"net"
 )
 
 // Packet is a wrapper around a byte array with some utility features
@@ -32,9 +33,19 @@ func (p Packet) BnetMsgID() byte {
 // https://redux.bnetdocs.org/?op=packet&pid=237
 type LogonRealmExPacket Packet
 
-// RealmIP returns the realm server ip and port as a string
-func (p LogonRealmExPacket) RealmIP() string {
-	return fmt.Sprintf("%d.%d.%d.%d:6112", p[20], p[21], p[22], p[23])
+// RealmIP returns the realm server ip
+func (p LogonRealmExPacket) RealmIP() net.IP {
+	return net.IP(p[20:24])
+}
+
+// RealmPort returns the realm port number
+func (p LogonRealmExPacket) RealmPort() int {
+	return int(binary.BigEndian.Uint16(p[24:26]))
+}
+
+// RealmTarget returns a connection string combining the realm ip and the realm port
+func (p LogonRealmExPacket) RealmTarget() string {
+	return fmt.Sprintf("%s:%d", p.RealmIP(), p.RealmPort())
 }
 
 // Token returns all the MCP chunk data required to authenticate with the realm server as a hex string
@@ -43,6 +54,16 @@ func (p LogonRealmExPacket) Token() string {
 	copy(token[0:16], p[4:20])
 	copy(token[16:64], p[28:76])
 	return hex.EncodeToString(token)
+}
+
+// SetRealmPort modifies the realm port
+func (p LogonRealmExPacket) SetRealmPort(port int) {
+	binary.BigEndian.PutUint16(p[24:26], uint16(port))
+}
+
+// SetRealmIP modifies the realm ip
+func (p LogonRealmExPacket) SetRealmIP(ip net.IP) {
+	copy(p[20:24], ip)
 }
 
 //
@@ -73,8 +94,13 @@ func (p McpJoinGamePacket) Token() []byte {
 }
 
 // GameIP returns the game server ip & port as a string
-func (p McpJoinGamePacket) GameIP() string {
-	return fmt.Sprintf("%d.%d.%d.%d:4000", p[9], p[10], p[11], p[12])
+func (p McpJoinGamePacket) GameIP() net.IP {
+	return net.IP(p[9:13])
+}
+
+// SetGameIP modifies the game server ip
+func (p McpJoinGamePacket) SetGameIP(ip net.IP) {
+	copy(p[9:13], ip)
 }
 
 // Status returns the join game status code

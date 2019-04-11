@@ -87,16 +87,6 @@ func (p *ProxyServer) Accept(conn net.Conn) {
 				return
 			}
 
-			// 0x01 game byte. required on battle.net & realm server
-			// skip it to simplify parsing. its automatically added back later
-			// note: this could potentially fuck up the game server proxy? is there a 0x01 packet?
-			if packet[0] == 0x01 {
-				if len(packet) == 1 {
-					continue
-				}
-				packet = packet[1:]
-			}
-
 			if !c.Connected() {
 				// store packets in a buffer until the remote is connected
 				// handle them separately. buffered packets cannot be easily silenced

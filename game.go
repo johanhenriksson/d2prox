@@ -1,5 +1,10 @@
 package d2prox
 
+import (
+	"encoding/hex"
+	"fmt"
+)
+
 // GamePort is the default game server port
 const GamePort = 4000
 
@@ -48,10 +53,8 @@ func (c *GameClient) OnConnect() {
 
 // HandleServer packets
 func (c *GameClient) HandleServer(packet Packet) Packet {
-	/*
-		fmt.Println("GS S->C")
-		fmt.Println(hex.Dump(packet))
-	*/
+	fmt.Println("GS S->C")
+	fmt.Println(hex.Dump(packet))
 	return packet
 }
 
@@ -61,10 +64,8 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 
 // HandleBuffered packets
 func (c *GameClient) HandleBuffered(packet Packet) Packet {
-	/*
-		fmt.Println("GS C->S (B)")
-		fmt.Println(hex.Dump(packet))
-	*/
+	fmt.Println("GS C->S (B)")
+	fmt.Println(hex.Dump(packet))
 
 	switch packet.GsMsgID() {
 	case GsGameLogon:
@@ -103,14 +104,13 @@ func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) {
 
 // HandleClient packets
 func (c *GameClient) HandleClient(packet Packet) Packet {
-	/*
-		fmt.Println("GS C->S")
-		fmt.Println(hex.Dump(packet))
-	*/
+	fmt.Println("GS C->S")
+	fmt.Println(hex.Dump(packet))
 
 	switch packet.GsMsgID() {
 	case GsStartLogon:
 		// silence D2GS_STARTLOGON, since we send it manually in Connect()
+		fmt.Println("Silenced D2GS_STARTLOGON")
 		return nil
 	}
 

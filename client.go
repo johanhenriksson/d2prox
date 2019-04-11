@@ -70,9 +70,14 @@ func (c *ProxyClient) OnConnect() {}
 
 // Close the proxy session
 func (c *ProxyClient) Close() {
-	c.Conn.Close()
-	c.server.Close()
-	c.server = nil
+	if c.Conn != nil {
+		c.Conn.Close()
+		c.Conn = nil
+	}
+	if c.server != nil {
+		c.server.Close()
+		c.server = nil
+	}
 	c.Proxy.Log("connection closed")
 }
 

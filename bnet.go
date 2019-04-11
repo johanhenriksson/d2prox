@@ -1,21 +1,29 @@
 package d2prox
 
+import (
+	"fmt"
+
+	"github.com/johanhenriksson/d2prox/ip"
+)
+
 // BnetPort is the default battle.net port
 const BnetPort = 6112
 
 // BnetProxy is the battle.net proxy server implementation
 type BnetProxy struct {
 	ProxyServer
+	RealmHost string
 }
 
 // NewBnet creates a new battle.net proxy
-func NewBnet() *BnetProxy {
+func NewBnet(hostname string) *BnetProxy {
 	return &BnetProxy{
-		ProxyServer{
+		ProxyServer: ProxyServer{
 			Name:     "bnet",
 			OnAccept: acceptBnet,
 			port:     BnetPort,
 		},
+		RealmHost: hostname,
 	}
 }
 
@@ -32,15 +40,14 @@ type BnetClient struct {
 	Token       string
 }
 
-// Connect to battle.net server
-func (c *BnetClient) Connect(target string) error {
-	// send 0x01 game byte on connect
-	// (its removed to simplify packet handling)
-	c.ProxyClient.outBuffer = append(
-		[][]byte{[]byte{0x01}},
-		c.ProxyClient.outBuffer...)
-
-	return c.ProxyClient.Connect(target)
+// OnConnect is fired immediately after a client connects to the proxy
+// Should only be called by the server Accept() function
+func (c *BnetClient) OnConnect() {
+	// read the game byte 0x01 and put it on the output buffer
+	// this simplifies handling of the first packet
+	b := []byte{0}
+	c.Read(b)
+	c.ProxyClient.outBuffer = [][]byte{b}
 }
 
 //
@@ -49,11 +56,21 @@ func (c *BnetClient) Connect(target string) error {
 
 // HandleBuffered packet
 func (c *BnetClient) HandleBuffered(packet Packet) Packet {
-	// we always know the realm server ip, so we can connect immediately
+	// we know the realm server ip, so we can connect immediately
 	// todo: rename OnConnect() to something better and put the call there
 
-	// todo: configurable battle.net server ip (this is EU)
-	if err := c.Connect("5.42.181.16:6112"); err != nil {
+	bnet := c.Proxy.(*BnetProxy)
+
+	// todo: configurable realm
+	// resolve battle.net server ip using external dns (in case the hosts file is modified)
+	bnetIP, err := ip.ResolveHost(bnet.RealmHost)
+	if err != nil {
+		c.Proxy.Log("Unable to resovle battle.net hostname '%s': %s", bnet.RealmHost, err)
+	}
+
+	// connect to battle.net server
+	target := fmt.Sprintf("%s:%d", bnetIP, BnetPort)
+	if err := c.Connect(target); err != nil {
 		c.Proxy.Log("battle.net connect() error: %s", err)
 		c.Close()
 	}
@@ -72,20 +89,13 @@ func (c *BnetClient) HandleServer(packet Packet) Packet {
 }
 
 func (c *BnetClient) handleLogonRealmEx(packet LogonRealmExPacket) {
-	target := packet.RealmIP()
+	target := packet.RealmTarget()
 	token := packet.Token()
 
-	// intercept ip
-	packet[20] = 127
-	packet[21] = 0
-	packet[22] = 0
-	packet[23] = 1
-
-	// set port 6113
-	packet[24] = 0x17
-	packet[25] = 0xe1
-	packet[26] = 0
-	packet[27] = 0
+	// intercept ip & port
+	realmIP := ip.Public()
+	packet.SetRealmIP(realmIP)
+	packet.SetRealmPort(RealmPort)
 
 	// store realm target
 	realmTargets[token] = target
