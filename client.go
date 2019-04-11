@@ -32,19 +32,25 @@ type ProxyClient struct {
 	server    net.Conn
 }
 
+// Client returns a reference to the client socket
 func (c *ProxyClient) Client() net.Conn { return c.client }
+
+// Server returns a reference to the server socket
 func (c *ProxyClient) Server() net.Conn { return c.server }
 
+// WriteClient sends a packet to the client
 func (c *ProxyClient) WriteClient(p Packet) error {
 	_, err := c.client.Write(p)
 	return err
 }
 
+// WriteServer sends a packet to the server
 func (c *ProxyClient) WriteServer(p Packet) error {
 	_, err := c.server.Write(p)
 	return err
 }
 
+// BufferPacket appends a packet to the output buffer, to be sent when connected to the server
 func (c *ProxyClient) BufferPacket(p Packet) {
 	c.outBuffer = append(c.outBuffer, p)
 }
@@ -66,7 +72,6 @@ func (c *ProxyClient) Connect(target string) error {
 	// send buffered packets
 	for _, packet := range c.outBuffer {
 		// send buffered packets
-		fmt.Println("write buffered packet len", len(packet))
 		if _, err := conn.Write(packet); err != nil {
 			return err
 		}

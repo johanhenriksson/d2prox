@@ -52,7 +52,7 @@ func (p *ProxyServer) Port() int {
 
 // Log a message
 func (p *ProxyServer) Log(format string, args ...interface{}) {
-	fmt.Printf("%s | %s\n", p.Name, fmt.Sprintf(format, args...))
+	fmt.Printf("%-6v| %s\n", p.Name, fmt.Sprintf(format, args...))
 }
 
 // Accept and handle a proxy session. Should be called as a goroutine
@@ -64,6 +64,7 @@ func (p *ProxyServer) Accept(conn net.Conn) {
 	HandleProxySession(p, c)
 }
 
+// HandleProxySession is the main
 func HandleProxySession(p Proxy, c Client) {
 	defer c.Close()
 
@@ -78,20 +79,16 @@ func HandleProxySession(p Proxy, c Client) {
 		select {
 		// abort on errors
 		case err := <-errs:
-			if err != nil {
-				p.Log("Read error: %s", err)
-			}
+			p.Log("read error: %s", err)
 			return
 
 		// receive client -> server packets
-		case packet, more := <-clientPackets:
-			if !more {
-				return
-			}
+		case packet := <-clientPackets:
 			packet = c.HandleBuffered(packet)
-			if packet != nil {
-				c.BufferPacket(packet)
+			if packet == nil {
+				continue // skip silenced packets
 			}
+			c.BufferPacket(packet)
 
 		case <-time.After(100 * time.Millisecond):
 			// periodic timeout to check if we've connected to the server
@@ -106,17 +103,11 @@ func HandleProxySession(p Proxy, c Client) {
 		select {
 		// abort on errors
 		case err := <-errs:
-			if err != nil {
-				p.Log("Read error: %s", err)
-			}
+			p.Log("read error: %s", err)
 			return
 
 		// receive client -> server packets
-		case packet, more := <-clientPackets:
-			if !more {
-				return
-			}
-
+		case packet := <-clientPackets:
 			packet = c.HandleClient(packet)
 			if packet == nil {
 				continue // skip silenced packets
@@ -129,11 +120,7 @@ func HandleProxySession(p Proxy, c Client) {
 			}
 
 		// receive server -> client packets
-		case packet, more := <-serverPackets:
-			if !more {
-				return
-			}
-
+		case packet := <-serverPackets:
 			packet = c.HandleServer(packet)
 			if packet == nil {
 				continue // skip silenced packets

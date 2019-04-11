@@ -22,7 +22,7 @@ type RealmProxy struct {
 func NewRealm() *RealmProxy {
 	return &RealmProxy{
 		ProxyServer{
-			Name: "rlmd",
+			Name: "realm",
 			port: RealmPort,
 		},
 	}
@@ -44,7 +44,7 @@ type RealmClient struct {
 	*ProxyClient
 }
 
-// OnConnect is fired immediately after a client connects to the proxy
+// OnAccept is fired immediately after a client connects to the proxy
 // Should only be called by the server Accept() function
 func (c *RealmClient) OnAccept() {
 	// read the game byte 0x01 and put it on the output buffer

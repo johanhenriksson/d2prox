@@ -12,24 +12,24 @@ import (
 
 func main() {
 	// greet
-	fmt.Println("core | d2prox by @johanhenriksson")
+	Log("d2prox by @johanhenriksson")
 
 	// env config: realm hostname
 	realmHost := GetEnv("REALM", "europe.battle.net")
-	fmt.Println("core | destination realm:", realmHost)
+	Log("destination realm: %s", realmHost)
 
 	// env config: local machine proxy
-	local := GetEnvBool("LOCAL", false)
+	local := GetEnvBool("LOCAL", true)
 	if local {
-		fmt.Println("core | running on localhost")
+		Log("running in local mode.")
 	} else {
 		// resolve public IP
 		ip, err := ip.ResolvePublicIP()
 		if err != nil {
-			fmt.Println("core | Error resolving public IP address!")
+			Log("Error resolving public IP address!")
 			return
 		}
-		fmt.Println("core | running as public. ip address resolved to", ip)
+		Log("running in public mode. ip address resolved to %s", ip)
 	}
 
 	// set up battle.net proxy
@@ -49,6 +49,10 @@ func main() {
 	for {
 		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+func Log(format string, args ...interface{}) {
+	fmt.Printf("%-6v| %s\n", "core", fmt.Sprintf(format, args...))
 }
 
 // GetEnvBool gets an environment variable and casts it to boolean

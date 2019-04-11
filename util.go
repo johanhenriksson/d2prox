@@ -1,6 +1,7 @@
 package d2prox
 
 import (
+	"fmt"
 	"net"
 )
 
@@ -34,7 +35,7 @@ func StreamReader(sck net.Conn, errs chan error) PacketStream {
 
 			// does this ever happen?
 			if len == 0 {
-				errs <- nil
+				errs <- fmt.Errorf("read 0 bytes")
 				return
 			}
 
