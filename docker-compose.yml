@@ -1,0 +1,11 @@
+version: '2.0'
+services:
+  proxy:
+    build: './'
+    ports:
+      - '6112:6112'
+      - '6113:6113'
+      - '4000:4000'
+    environment:
+      REALM: 'europe.battle.net'
+      LOCAL: 'false'
