@@ -5,7 +5,7 @@ import (
 )
 
 // BufferSize is the default receive buffer size
-const BufferSize = 1024
+const BufferSize = 4 * 1024 // 4k
 
 // PacketStream is a channel for packets
 type PacketStream chan Packet
@@ -61,8 +61,10 @@ func PacketReader(lengthFunc PacketLengthFunc) PacketStreamReader {
 	}
 }
 
-func bufferLengthFunc(buffer PacketBuffer, offset, length int) (int, error) {
-	return length, nil
-}
-
+// StreamReader is the simplest possible implementation of a packet reader.
+// Packets are written to the stream as they are read from the socket without inspection.
 var StreamReader = PacketReader(bufferLengthFunc)
+
+func bufferLengthFunc(buffer PacketBuffer, offset, length int) (int, error) {
+	return length, nil // length of the packet is simply all the read bytes
+}

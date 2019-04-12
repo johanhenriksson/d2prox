@@ -33,16 +33,12 @@ func (p *GameProxy) Accept(conn net.Conn) {
 			client: conn,
 		},
 	}
-	HandleProxySession(p, c,
-		PacketReader(GsClientPacketLength),
-		PacketReader(GsServerPacketLength))
+	HandleProxySession(p, c, PacketReader(GsClientPacketLength), PacketReader(GsServerPacketLength))
 }
 
 // GameClient implements the game server proxy client
 type GameClient struct {
 	*ProxyClient
-	LogonPacket Packet
-	LogonSent   bool
 }
 
 // OnAccept is fired immediately after a client connects to the proxy
@@ -60,10 +56,11 @@ func (c *GameClient) OnAccept() {
 
 // HandleServer packets
 func (c *GameClient) HandleServer(packet Packet) Packet {
+	c.Proxy.Log("S->C: %s", GsServerPacketName(packet))
 	switch packet.GsMsgID() {
 	case GsStartLogon:
 		// silence D2GS_STARTLOGON, since we send it manually in Connect()
-		c.Proxy.Log("Compression mode:", packet[1])
+		c.Proxy.Log("Compression mode: %d", packet[1])
 		return nil
 	}
 	return packet
@@ -75,6 +72,7 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 
 // HandleBuffered packets
 func (c *GameClient) HandleBuffered(packet Packet) Packet {
+	c.Proxy.Log("C->S: %s", GsClientPacketName(packet))
 	switch packet.GsMsgID() {
 	case GsGameLogon:
 		logon := GsGameLogonPacket(packet)
@@ -104,7 +102,6 @@ func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) GsGameLogonPacket
 	// manually buffer packet so that it will be available on connect.
 	// this packet will be silenced to avoid possible duplication
 	c.BufferPacket(Packet(packet))
-	//c.LogonPacket = Packet(packet)
 
 	// connect to target game server
 	if err := c.Connect(target); err != nil {
@@ -117,5 +114,6 @@ func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) GsGameLogonPacket
 
 // HandleClient packets
 func (c *GameClient) HandleClient(packet Packet) Packet {
+	c.Proxy.Log("C->S: %s", GsClientPacketName(packet))
 	return packet
 }

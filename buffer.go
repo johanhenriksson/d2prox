@@ -26,3 +26,12 @@ func (pb PacketBuffer) Extract(offset, length int) Packet {
 	copy(packet, pb[offset:offset+length])
 	return packet
 }
+
+func (pb PacketBuffer) IndexOf(val byte, startIndex int) int {
+	for i := startIndex; i < len(pb); i++ {
+		if pb[i] == val {
+			return i
+		}
+	}
+	return -1
+}

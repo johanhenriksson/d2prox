@@ -26,4 +26,3 @@ const McpStartup byte = 0x01
 //
 
 const GsStartLogon byte = 0xAF
-const GsGameLogon byte = 0x68
