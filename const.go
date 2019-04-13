@@ -20,9 +20,3 @@ const SidLogonRealmEx byte = 0x3E
 
 const McpJoinGame byte = 0x04
 const McpStartup byte = 0x01
-
-//
-// game server packets
-//
-
-const GsStartLogon byte = 0xAF

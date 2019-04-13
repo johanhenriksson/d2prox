@@ -196,21 +196,27 @@ var gsClientPacketLengths = map[int]int{
 	GsPing:                      13, // 0x65
 }
 
+func gsChatMessageLength(buffer PacketBuffer, offset, length int) (int, error) {
+	nickEnd := buffer.IndexOf(0x00, offset+3)
+	if nickEnd == -1 {
+		return 0, fmt.Errorf("Unable to parse chat message packet")
+	}
+	msgEnd := buffer.IndexOf(0x00, nickEnd+1)
+	if msgEnd == -1 {
+		return 0, fmt.Errorf("Unable to parse chat message packet")
+	}
+	return msgEnd + 2 - offset, nil
+}
+
 var gsClientPacketLengthFuncs = map[int]PacketLengthFunc{
-	GsOverheadChat: func(buffer PacketBuffer, offset, length int) (int, error) {
-		// todo: implement properly
-		return length - offset, nil
-	},
-	GsChatMessage: func(buffer PacketBuffer, offset, length int) (int, error) {
-		// todo: implement properly
-		return length - offset, nil
-	},
+	GsOverheadChat: gsChatMessageLength,
+	GsChatMessage:  gsChatMessageLength,
 	GsUploadSave: func(buffer PacketBuffer, offset, length int) (int, error) {
 		return buffer.Byte(offset+1) + 6, nil
 	},
 }
 
-func GsClientPacketLength(buffer PacketBuffer, offset, length int) (int, error) {
+func gsClientPacketLength(buffer PacketBuffer, offset, length int) (int, error) {
 	msgID := buffer.Byte(offset)
 	plen, known := gsClientPacketLengths[msgID]
 	if !known {
@@ -656,7 +662,7 @@ var gsServerPacketLengthFuncs = map[int]PacketLengthFunc{
 	},
 }
 
-func GsServerPacketLength(buffer PacketBuffer, offset, length int) (int, error) {
+func gsServerPacketLength(buffer PacketBuffer, offset, length int) (int, error) {
 	msgID := buffer.Byte(offset)
 	plen, known := gsServerPacketLengths[msgID]
 	if !known {

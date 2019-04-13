@@ -120,3 +120,10 @@ type GsGameLogonPacket Packet
 func (p GsGameLogonPacket) Token() string {
 	return hex.EncodeToString(p[1:7])
 }
+
+type GsChatMessagePacket Packet
+
+func (p GsChatMessagePacket) Message() string {
+	pb := PacketBuffer(p)
+	return pb.NullString(3)
+}

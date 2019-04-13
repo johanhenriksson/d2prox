@@ -27,6 +27,7 @@ func (pb PacketBuffer) Extract(offset, length int) Packet {
 	return packet
 }
 
+// IndexOf returns the next index of a given byte in the buffer, starting from startIndex.
 func (pb PacketBuffer) IndexOf(val byte, startIndex int) int {
 	for i := startIndex; i < len(pb); i++ {
 		if pb[i] == val {
@@ -34,4 +35,9 @@ func (pb PacketBuffer) IndexOf(val byte, startIndex int) int {
 		}
 	}
 	return -1
+}
+
+func (pb PacketBuffer) NullString(offset int) string {
+	end := pb.IndexOf(0x00, offset)
+	return string(pb[offset:end])
 }

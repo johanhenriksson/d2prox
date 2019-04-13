@@ -1,7 +1,6 @@
 package d2prox
 
 import (
-	"fmt"
 	"net"
 )
 
@@ -33,7 +32,7 @@ func (p *GameProxy) Accept(conn net.Conn) {
 			client: conn,
 		},
 	}
-	HandleProxySession(p, c, PacketReader(GsClientPacketLength), PacketReader(GsServerPacketLength))
+	HandleProxySession(p, c, PacketReader(gsClientPacketLength), PacketReader(gsServerPacketLength))
 }
 
 // GameClient implements the game server proxy client
@@ -44,10 +43,9 @@ type GameClient struct {
 // OnAccept is fired immediately after a client connects to the proxy
 // Should only be called by the server Accept() function
 func (c *GameClient) OnAccept() {
-	// client wont send game info until the server sends D2GS_STARTLOGON (0xAF)
+	// client wont send game info until the server sends GsConnectionInfo (0xAF)
 	// we'll send it manually and silence it later.
-	fmt.Println("sent fake D2GS_STARTLOGON")
-	c.WriteClient(Packet{GsStartLogon, 0x00})
+	c.WriteClient(Packet{GsConnectionInfo, 0x00})
 }
 
 //
@@ -58,7 +56,7 @@ func (c *GameClient) OnAccept() {
 func (c *GameClient) HandleServer(packet Packet) Packet {
 	c.Proxy.Log("S->C: %s", GsServerPacketName(packet))
 	switch packet.GsMsgID() {
-	case GsStartLogon:
+	case GsConnectionInfo:
 		// silence D2GS_STARTLOGON, since we send it manually in Connect()
 		c.Proxy.Log("Compression mode: %d", packet[1])
 		return nil
@@ -115,5 +113,10 @@ func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) GsGameLogonPacket
 // HandleClient packets
 func (c *GameClient) HandleClient(packet Packet) Packet {
 	c.Proxy.Log("C->S: %s", GsClientPacketName(packet))
+	switch packet.GsMsgID() {
+	case GsChatMessage:
+		//chatmsg := GsChatMessagePacket(packet)
+		//fmt.Println("chat:", chatmsg.Message())
+	}
 	return packet
 }
