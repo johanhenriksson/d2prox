@@ -127,3 +127,9 @@ func (p GsChatMessagePacket) Message() string {
 	pb := PacketBuffer(p)
 	return pb.NullString(3)
 }
+
+func (p GsChatMessagePacket) Target() string {
+	pb := PacketBuffer(p)
+	start := pb.IndexOf(0x00, 3) + 1
+	return pb.NullString(start)
+}

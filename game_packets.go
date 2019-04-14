@@ -1,6 +1,9 @@
 package d2prox
 
-import "fmt"
+import (
+	"encoding/hex"
+	"fmt"
+)
 
 //
 // client -> server
@@ -484,7 +487,7 @@ var gsServerPacketLengths = map[int]int{
 	GsGameExitSuccess:         1,
 	GsMapReveal:               6,
 	GsMapHide:                 6,
-	GsAssignLevelWarp:         12,
+	GsAssignLevelWarp:         11,
 	GsRemoveObject:            6,
 	GsHandshake:               6,
 	GsNPCHit:                  9,
@@ -606,6 +609,7 @@ var gsServerPacketLengths = map[int]int{
 	GsUnknown11:               53,
 	GsDownloadSave:            -1, // variable
 	GsTimeout:                 5,
+	// 0x13 == 16 ??
 }
 
 var gsServerPacketLengthFuncs = map[int]PacketLengthFunc{
@@ -666,7 +670,13 @@ func gsServerPacketLength(buffer PacketBuffer, offset, length int) (int, error) 
 	msgID := buffer.Byte(offset)
 	plen, known := gsServerPacketLengths[msgID]
 	if !known {
-		return 0, fmt.Errorf("Unknown GS packet (S->C): 0x%x", msgID)
+		fmt.Printf("Unknown GS packet (S->C): 0x%x\n", msgID)
+		fmt.Println("Buffer dump:")
+		fmt.Println(hex.Dump(buffer[:length]))
+		fmt.Println("Remaining in buffer:")
+		fmt.Println(hex.Dump(buffer[offset:length]))
+		return length - offset, nil
+		//return 0, fmt.Errorf("Unknown GS packet (S->C): 0x%x", msgID)
 	}
 
 	if plen < 0 {

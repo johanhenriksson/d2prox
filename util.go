@@ -14,6 +14,7 @@ type PacketStreamReader func(net.Conn, chan error) PacketStream
 
 type PacketLengthFunc func(PacketBuffer, int, int) (int, error)
 
+// PacketReader is a base for separating packets 
 func PacketReader(lengthFunc PacketLengthFunc) PacketStreamReader {
 	return func(sck net.Conn, errs chan error) PacketStream {
 		buffer := make(PacketBuffer, BufferSize)
