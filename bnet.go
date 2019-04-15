@@ -36,7 +36,34 @@ func (p *BnetProxy) Accept(conn net.Conn) {
 		},
 		Bnet: p,
 	}
-	HandleProxySession(p, c, PacketReader(bnetPacketLength), PacketReader(bnetPacketLength))
+
+	// read first protocol byte to choose session handler
+	protocolPacket := PacketBuffer{0}
+	c.Client().Read(protocolPacket)
+
+	// add it back to the outgoing buffer
+	c.BufferPacket(Packet(protocolPacket))
+
+	// handle session depending on protocol type
+	switch protocolPacket.Byte(0) {
+	case 0x01: // Battle.net Chat
+		c.Proxy.Log("bncs session")
+		p.handleBnetSession(c)
+	case 0x02: // BNFTP
+		c.Proxy.Log("bnftp session")
+		p.handleBnetFtpSession(c)
+	}
+}
+
+func (p *BnetProxy) handleBnetSession(client *BnetClient) {
+	HandleProxySession(p, client, PacketReader(bnetPacketLength), PacketReader(bnetPacketLength))
+}
+
+func (p *BnetProxy) handleBnetFtpSession(client *BnetClient) {
+	ftpClient := &BnetFtpClient{
+		BnetClient: client,
+	}
+	HandleProxySession(p, ftpClient, StreamReader, StreamReader)
 }
 
 // bnetPacketLength computes the length of the next packet in the buffer
@@ -60,12 +87,6 @@ type BnetClient struct {
 // OnAccept is fired immediately after a client connects to the proxy
 // Should only be called by the server Accept() function
 func (c *BnetClient) OnAccept() {
-	// read the game byte 0x01 and put it on the output buffer
-	// this simplifies handling of the first packet
-	b := Packet{0}
-	c.Client().Read(b)
-	c.BufferPacket(b)
-
 	// todo: configurable realm
 	// resolve battle.net server ip using external dns (in case the hosts file is modified)
 	bnetIP, err := ip.ResolveHost(c.Bnet.RealmHost)
@@ -124,3 +145,15 @@ func (c *BnetClient) HandleClient(packet Packet) Packet {
 	}
 	return packet
 }
+
+//
+// BNETFTP Client
+//
+
+type BnetFtpClient struct {
+	*BnetClient
+}
+
+func (c *BnetFtpClient) HandleClient(packet Packet) Packet   { return packet }
+func (c *BnetFtpClient) HandleServer(packet Packet) Packet   { return packet }
+func (c *BnetFtpClient) HandleBuffered(packet Packet) Packet { return packet }
