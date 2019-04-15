@@ -1,6 +1,7 @@
 package d2prox
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"strings"
@@ -37,6 +38,8 @@ func (p *GameProxy) Accept(conn net.Conn) {
 			Players: make(PlayerMap),
 			NPCs:    make(NPCMap),
 			Objects: make(ObjectMap),
+			Items:   make(ItemMap),
+			Warps:   make(WarpMap),
 		},
 	}
 	HandleProxySession(p, c, PacketReader(gsClientPacketLength), PacketReader(gsServerPacketLength))
@@ -53,6 +56,8 @@ type GameClient struct {
 type ObjectMap map[int]*Object
 type PlayerMap map[int]*Player
 type NPCMap map[int]*NPC
+type WarpMap map[int]*Warp
+type ItemMap map[int]*Item
 
 type Game struct {
 	Difficulty int
@@ -63,6 +68,8 @@ type Game struct {
 	Players    PlayerMap
 	NPCs       NPCMap
 	Objects    ObjectMap
+	Items      ItemMap
+	Warps      WarpMap
 }
 
 type Object struct {
@@ -90,6 +97,14 @@ type NPC struct {
 	X     int
 	Y     int
 	Life  int
+}
+
+type Warp struct {
+	ID      int
+	Type    int
+	ClassID int
+	X       int
+	Y       int
 }
 
 // OnAccept is fired immediately after a client connects to the proxy
@@ -224,7 +239,6 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 			Y:    pb.Uint16(10),
 		}
 		c.Game.Objects[object.ID] = object
-		fmt.Println("Add object", object)
 		return packet
 
 	case GsRemoveObject:
@@ -237,6 +251,8 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 			delete(c.Game.NPCs, id)
 		case UnitTypeObject:
 			delete(c.Game.Objects, id)
+		case UnitTypeItem:
+			delete(c.Game.Items, id)
 		default:
 			c.Proxy.Log("Remove item %d (type: %d)", id, kind)
 		}
@@ -308,12 +324,18 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 
 	case GsItemActionOwned:
 		item := ParseItem(packet)
-		fmt.Println(item)
+		action := ItemAction(pb.Byte(1))
+		c.Proxy.Log("OwnedItem - %s action: %s", item, action)
 		return packet
 
 	case GsItemActionWorld:
 		item := ParseItem(packet)
-		fmt.Println(item)
+		action := ItemAction(pb.Byte(1))
+		c.Proxy.Log("WorldItem - %s action: %s", item, action)
+		switch action {
+		case ItemActionDrop:
+			c.Game.Items[item.ID] = item
+		}
 		return packet
 
 	case GsWardenRequest:
@@ -393,9 +415,14 @@ func (c *GameClient) HandleClient(packet Packet) Packet {
 		return Packet(c.handleChatMessage(GsChatMessagePacket(packet)))
 
 	case GsPickupItem:
-		id := pb.Uint32(2)
+		id := pb.Uint32(5)
 		c.Proxy.Log("Pickup item %x", id)
+		fmt.Println(hex.Dump(packet))
 		return packet
+
+	case GsDropItem:
+		id := pb.Uint32(1)
+		c.Proxy.Log("Drop item %x", id)
 
 	case GsPing:
 		return packet // silent
