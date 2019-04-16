@@ -121,13 +121,16 @@ func (p GsGameLogonPacket) Token() string {
 	return hex.EncodeToString(p[1:7])
 }
 
+// GsChatMessagePacket represents a chat message sent from the client
 type GsChatMessagePacket Packet
 
+// Message returns the chat message as a string
 func (p GsChatMessagePacket) Message() string {
 	pb := PacketBuffer(p)
 	return pb.NullString(3)
 }
 
+// Target returns the message target as a string
 func (p GsChatMessagePacket) Target() string {
 	pb := PacketBuffer(p)
 	start := pb.IndexOf(0x00, 3) + 1

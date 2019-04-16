@@ -10,11 +10,16 @@ const BufferSize = 4 * 1024 // 4k
 // PacketStream is a channel for packets
 type PacketStream chan Packet
 
+// PacketStreamReader is a type of function that reads from a network in a goroutine
+// and returns a stream of separated packets.
 type PacketStreamReader func(net.Conn, chan error) PacketStream
 
+// PacketLengthFunc is a type of function that inspects received bytes and tries to
+// determine the length of the next packet in the stream.
 type PacketLengthFunc func(PacketBuffer, int, int) (int, error)
 
-// PacketReader is a base for separating packets 
+// PacketReader is a base for separating packets into a packet stream using a
+// provided PacketLengthFunc.
 func PacketReader(lengthFunc PacketLengthFunc) PacketStreamReader {
 	return func(sck net.Conn, errs chan error) PacketStream {
 		buffer := make(PacketBuffer, BufferSize)

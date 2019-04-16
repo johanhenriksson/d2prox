@@ -298,13 +298,19 @@ func ParseItem(packet Packet) *Item {
 	}
 
 	// magic stats
-	for {
+	for r.Offset+9 < r.Length() {
 		statID := r.Bits(9)
+		fmt.Println("found stat", statID)
 		if statID == 0x1ff {
+			break
+		}
+		if statID >= len(StatProperties) {
+			fmt.Println("Unknown stat", statID)
 			break
 		}
 
 		stat := ParseStat(statID, r)
+		fmt.Println(stat)
 		item.Stats = append(item.Stats, stat)
 	}
 

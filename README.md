@@ -1,19 +1,41 @@
 # d2prox
 
-Diablo II proxy written in Go. Proxying allows the user to bypass IP rate limits set by battle.net. 
+Diablo II proxy written in Go. Proxying allows the user to bypass IP rate limits set by battle.net. Application-level proxying is achieved by deep packet inspection and modification. 
 
-*It's currenly hardcoded for the European realm. Additionally it will only run on the same machine as the Diablo client, which makes it completely useless. However, anyone who knows how to compile it should be able to configure it to work with any realm/ip.*
-
-Since the code allows inspection and modification of any D2 packet, it could theoretically be used as a base for packet editing, packet filtering and implementing packet based hacks & bots.
+Since the code allows modification of any D2 packet, it could theoretically be used as a base for packet editing, packet filtering and implementing packet based hacks & bots.
 
 ## Disclaimer
 
-This software is unfinished and not properly tested. It's only meant as a proof of concept. However, it does work and could be used with minimal modification. As far as I know, it should be undetectable. 
+This software is unfinished and not yet properly tested. It's only meant as a proof of concept. Don't use it on battle.net.
+
+## Configuration
+
+Environment variables:
+
+* **REALM** (string): Realm hostname. Defaults to ``europe.battle.net``
+* **LOCAL** (bool): Indicates whether the server runs on a local or remote machine. If ``true``, the proxy can only be reached from the local machine. Otherwise, its public ip is looked up and used for proxying. Defaults to ``true``
 
 ## How to use
 
-* Rewrite ``europe.battle.net`` to ``127.0.0.1`` in your systems hosts file
+* Rewrite ``europe.battle.net`` (or your desired realm hostname) to the proxys IP address in your systems hosts file. If the proxy is running in local mode, this will be ``127.0.0.1``. Otherwise, it should be the proxy machines public IP address.
+  
+  Example: (*/etc/hosts*)
+  ```
+  127.0.0.1 europe.battle.net
+  ```
+ 
 * Run d2prox
+  
+  Using docker-compose:
+  ```
+  docker-compose up
+  ```
+
+  By building the go executable:
+  ```
+  go run cmd/d2prox.go
+  ```
+
 * Login and play
 
 ## Method

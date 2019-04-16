@@ -39,7 +39,11 @@ func (p *BnetProxy) Accept(conn net.Conn) {
 
 	// read first protocol byte to choose session handler
 	protocolPacket := PacketBuffer{0}
-	c.Client().Read(protocolPacket)
+	if _, err := c.Client().Read(protocolPacket); err != nil {
+		c.Proxy.Log("error reading protocol byte")
+		conn.Close()
+		return
+	}
 
 	// add it back to the outgoing buffer
 	c.BufferPacket(Packet(protocolPacket))
@@ -146,14 +150,17 @@ func (c *BnetClient) HandleClient(packet Packet) Packet {
 	return packet
 }
 
-//
-// BNETFTP Client
-//
-
+// BnetFtpClient represents a BNFTP session. It derives from BnetClient since it shares a common
+// OnAccept method, but it does not read or interfere with any packets
 type BnetFtpClient struct {
 	*BnetClient
 }
 
-func (c *BnetFtpClient) HandleClient(packet Packet) Packet   { return packet }
-func (c *BnetFtpClient) HandleServer(packet Packet) Packet   { return packet }
+// HandleClient nop
+func (c *BnetFtpClient) HandleClient(packet Packet) Packet { return packet }
+
+// HandleServer nop
+func (c *BnetFtpClient) HandleServer(packet Packet) Packet { return packet }
+
+// HandleBuffered nop
 func (c *BnetFtpClient) HandleBuffered(packet Packet) Packet { return packet }
