@@ -79,32 +79,32 @@ func (p McpStartupPacket) Token() string {
 	return hex.EncodeToString(p[3:67])
 }
 
-// McpJoinGamePacket wraps MCP_JOINGAME (S->C)
+// McpJoinedGamePacket wraps MCP_JOINGAME (S->C)
 // https://redux.bnetdocs.org/?op=packet&pid=107
-type McpJoinGamePacket Packet
+type McpJoinedGamePacket Packet
 
 // Hash returns the game hash as a byte array
-func (p McpJoinGamePacket) Hash() []byte {
+func (p McpJoinedGamePacket) Hash() []byte {
 	return p[13:17]
 }
 
 // Token returns the game token as a byte array
-func (p McpJoinGamePacket) Token() []byte {
+func (p McpJoinedGamePacket) Token() []byte {
 	return p[5:7]
 }
 
 // GameIP returns the game server ip & port as a string
-func (p McpJoinGamePacket) GameIP() net.IP {
+func (p McpJoinedGamePacket) GameIP() net.IP {
 	return net.IP(p[9:13])
 }
 
 // SetGameIP modifies the game server ip
-func (p McpJoinGamePacket) SetGameIP(ip net.IP) {
+func (p McpJoinedGamePacket) SetGameIP(ip net.IP) {
 	copy(p[9:13], ip)
 }
 
 // Status returns the join game status code
-func (p McpJoinGamePacket) Status() int {
+func (p McpJoinedGamePacket) Status() int {
 	return int(binary.LittleEndian.Uint32(p[17:21]))
 }
 

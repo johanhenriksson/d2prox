@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+type ItemMap map[int]*Item
+
 type Item struct {
 	ID             int
 	Type           *ItemType
@@ -298,6 +300,7 @@ func ParseItem(packet Packet) *Item {
 	}
 
 	// magic stats
+	/* needs work...
 	for r.Offset+9 < r.Length() {
 		statID := r.Bits(9)
 		fmt.Println("found stat", statID)
@@ -313,6 +316,7 @@ func ParseItem(packet Packet) *Item {
 		fmt.Println(stat)
 		item.Stats = append(item.Stats, stat)
 	}
+	*/
 
 	return item
 }

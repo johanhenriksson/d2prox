@@ -10,6 +10,9 @@ import (
 // BnetPort is the default battle.net port
 const BnetPort = 6112
 
+// Keeps track of account names -> game sessions
+var accountSessions = map[string]*GameSession{}
+
 // BnetProxy is the battle.net proxy server implementation
 type BnetProxy struct {
 	ProxyServer
@@ -83,9 +86,8 @@ func bnetPacketLength(buffer PacketBuffer, offset, length int) (int, error) {
 // BnetClient is the battle.net proxy client implementation
 type BnetClient struct {
 	*ProxyClient
-	Bnet        *BnetProxy
-	AccountName string
-	Token       string
+	Bnet    *BnetProxy
+	Session *GameSession
 }
 
 // OnAccept is fired immediately after a client connects to the proxy
@@ -129,10 +131,13 @@ func (c *BnetClient) handleLogonRealmEx(packet LogonRealmExPacket) {
 	packet.SetRealmIP(realmIP)
 	packet.SetRealmPort(RealmPort)
 
-	// store realm target
-	realmTargets[token] = target
+	// store realm host in session
+	c.Session.RealmHost = target
 
-	c.Proxy.Log("realm logon for %s - token: %s realm: %s", c.AccountName, token[8:16], target)
+	// store realm session
+	realmSessions[token] = c.Session
+
+	c.Proxy.Log("realm logon for %s - token: %s realm: %s", c.Session.AccountName, token[8:16], target)
 }
 
 //
@@ -143,9 +148,18 @@ func (c *BnetClient) handleLogonRealmEx(packet LogonRealmExPacket) {
 func (c *BnetClient) HandleClient(packet Packet) Packet {
 	switch packet.BnetMsgID() {
 	case SidLogonResponse2:
+		// extract account name
 		name := string(packet[32:])
-		c.Proxy.Log("account name: %s", name)
-		c.AccountName = name
+
+		// look up or create new game session
+		if session, exists := accountSessions[name]; exists {
+			c.Session = session
+			c.Proxy.Log("retrieved previous session for %s", name)
+		} else {
+			c.Session = NewGameSession(name)
+			accountSessions[name] = c.Session
+			c.Proxy.Log("started new session for %s", name)
+		}
 	}
 	return packet
 }

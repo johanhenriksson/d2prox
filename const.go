@@ -12,16 +12,17 @@ const JoinGameOk = 0x00
 // battle.net server packets
 //
 
-const SidAuthInfo byte = 0x50
-const SidLogonResponse2 byte = 0x3A
-const SidLogonRealmEx byte = 0x3E
+const SidAuthInfo = 0x50
+const SidLogonResponse2 = 0x3A
+const SidLogonRealmEx = 0x3E
 
 //
 // realm server packets
 //
 
-const McpJoinGame byte = 0x04
-const McpStartup byte = 0x01
+const McpStartup = 0x01
+const McpCreateGame = 0x03
+const McpJoinGame = 0x04
 
 //
 //
@@ -32,7 +33,9 @@ type UnitType int
 const UnitTypePlayer = UnitType(0x00)
 const UnitTypeNPC = UnitType(0x01)
 const UnitTypeObject = UnitType(0x02)
+const UnitTypeMissile = UnitType(0x03)
 const UnitTypeItem = UnitType(0x04)
+const UnitTypeWarp = UnitType(0x05)
 
 //
 // unit quality

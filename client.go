@@ -22,6 +22,7 @@ type Client interface {
 
 	OnAccept()
 	OnConnect()
+	OnClose()
 }
 
 // ProxyClient represents a generic proxy session
@@ -89,6 +90,9 @@ func (c *ProxyClient) OnAccept() {}
 // Should only be called by the proxy session handler
 func (c *ProxyClient) OnConnect() {}
 
+// OnClose is fired immediately after a session is disconnected from the server or client
+func (c *ProxyClient) OnClose() {}
+
 // Close the proxy session
 func (c *ProxyClient) Close() {
 	if c.client != nil {
@@ -99,6 +103,7 @@ func (c *ProxyClient) Close() {
 		c.server.Close()
 		c.server = nil
 	}
+	c.OnClose()
 	c.Proxy.Log("connection closed")
 }
 

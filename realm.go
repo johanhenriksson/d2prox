@@ -11,7 +11,7 @@ import (
 // RealmPort is the default realm server port
 const RealmPort = 6113
 
-var realmTargets = make(map[string]string)
+var realmSessions = make(map[string]*GameSession)
 
 // RealmProxy implements the realm proxy server
 type RealmProxy struct {
@@ -47,6 +47,7 @@ func realmPacketLength(buffer PacketBuffer, offset, length int) (int, error) {
 // RealmClient implements the realm proxy client
 type RealmClient struct {
 	*ProxyClient
+	Session *GameSession
 }
 
 // OnAccept is fired immediately after a client connects to the proxy
@@ -79,27 +80,43 @@ func (c *RealmClient) handleMcpStartup(packet McpStartupPacket) {
 	token := packet.Token()
 	c.Proxy.Log("realm token: %s", token[8:16])
 
-	// find target
-	target, exists := realmTargets[token]
+	// find session
+	session, exists := realmSessions[token]
 	if !exists {
 		c.Proxy.Log("unknown token: %s", token)
 		return
 	}
+	c.Session = session
 
 	// clear target
-	delete(realmTargets, token)
+	delete(realmSessions, token)
 
 	// manually buffer packet so that it will be available on connect.
 	// this packet will be silenced to avoid possible duplication
 	c.BufferPacket(Packet(packet))
 
 	// connect to realm server
-	c.Proxy.Log("realm target: %s", target)
-	if err := c.Connect(target); err != nil {
-		c.Proxy.Log("error connecting to realm target:", target)
+	c.Proxy.Log("realm target: %s", session.RealmHost)
+	if err := c.Connect(session.RealmHost); err != nil {
+		c.Proxy.Log("error connecting to realm target:", session.RealmHost)
 		c.Proxy.Log("%s", err)
 		return
 	}
+}
+
+func (c *RealmClient) HandleClient(packet Packet) Packet {
+	switch packet.RealmMsgID() {
+	case McpJoinGame:
+		c.handleJoinGame(packet)
+	}
+	return packet
+}
+
+func (c *RealmClient) handleJoinGame(packet Packet) {
+	pb := PacketBuffer(packet)
+	name := pb.NullString(5)
+	pass := pb.NullString(5 + len(name) + 1)
+	c.Proxy.Log("Joining game %s//%s", name, pass)
 }
 
 //
@@ -110,13 +127,16 @@ func (c *RealmClient) handleMcpStartup(packet McpStartupPacket) {
 func (c *RealmClient) HandleServer(packet Packet) Packet {
 	switch packet.RealmMsgID() {
 	case McpJoinGame:
-		join := McpJoinGamePacket(packet)
-		c.handleJoinGame(join)
+		join := McpJoinedGamePacket(packet)
+		c.handleJoinedGame(join)
+	case McpCreateGame:
+		c.handleCreateGame(packet)
 	}
+
 	return packet
 }
 
-func (c *RealmClient) handleJoinGame(packet McpJoinGamePacket) {
+func (c *RealmClient) handleJoinedGame(packet McpJoinedGamePacket) {
 	if packet.Status() != JoinGameOk {
 		// join game failed, do nothing.
 		c.Proxy.Log("failed to join game: %x", packet.Status())
@@ -132,11 +152,22 @@ func (c *RealmClient) handleJoinGame(packet McpJoinGamePacket) {
 	// store game target
 	gameIP := packet.GameIP()
 	target := fmt.Sprintf("%s:%d", gameIP, GamePort)
-	gameTargets[tokenStr] = target
+	c.Session.GameHost = target
+
+	// store session
+	gameSessions[tokenStr] = c.Session
 
 	c.Proxy.Log("joining game. ip: %s, token: %s", gameIP, tokenStr)
 
 	// rewrite game server ip
 	proxyIP := ip.Public()
 	packet.SetGameIP(proxyIP)
+}
+
+func (c *RealmClient) handleCreateGame(packet Packet) {
+	pb := PacketBuffer(packet)
+	result := pb.Uint32(9)
+	if result == 0x00 {
+		// create game ok
+	}
 }
