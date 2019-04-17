@@ -138,7 +138,7 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 		player := &Player{
 			ID:    pb.Uint32(1),
 			Name:  pb.NullString(6),
-			Class: pb.Byte(5),
+			Class: PlayerClass(pb.Byte(5)),
 			Stats: make(map[int]int),
 			Position: Vec2{
 				X: pb.Uint16(22),
@@ -442,7 +442,11 @@ func (c *GameClient) handleChatMessage(packet GsChatMessagePacket) GsChatMessage
 	// chat commands
 	msg := packet.Message()
 	if msg[0] == '.' {
-		command := strings.ToLower(msg[1:])
+		command := strings.Trim(strings.ToLower(msg[1:]), " \t")
+		if space := strings.Index(command, " "); space > 0 {
+			command = command[:space]
+		}
+
 		switch command {
 		case "exp":
 			c.SendChat(fmt.Sprintf("Experience gained: %d", c.Game.ExpGained))

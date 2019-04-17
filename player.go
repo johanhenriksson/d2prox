@@ -5,7 +5,7 @@ type PlayerMap map[int]*Player
 type Player struct {
 	ID       int
 	Name     string
-	Class    int
+	Class    PlayerClass
 	Position Vec2
 	Health   int
 	Mana     int

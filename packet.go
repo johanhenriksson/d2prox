@@ -29,6 +29,32 @@ func (p Packet) BnetMsgID() byte {
 // battle.net packets
 //
 
+type BnetAuthCheckPacket Packet
+
+// NumKeys returns the number of cd keys in the packet
+func (p BnetAuthCheckPacket) NumKeys() int {
+	pb := PacketBuffer(p)
+	return pb.Uint32(16)
+}
+
+// KeyHash returns a cd key public value by index
+func (p BnetAuthCheckPacket) KeyHash(index int) string {
+	const keyOffset = 24
+	const keyLen = 4 * 9
+	offset := keyOffset + index*keyLen + 8
+	hashBytes := p[offset : offset+4]
+	return hex.EncodeToString(hashBytes)
+}
+
+// KeysHash returns a hash of all the keys (their combined public values)
+func (p BnetAuthCheckPacket) KeysHash() string {
+	hash := ""
+	for i := 0; i < p.NumKeys(); i++ {
+		hash += p.KeyHash(i)
+	}
+	return hash
+}
+
 // LogonRealmExPacket wraps SID_LOGONREALMEX (S->C)
 // https://redux.bnetdocs.org/?op=packet&pid=237
 type LogonRealmExPacket Packet

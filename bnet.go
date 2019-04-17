@@ -3,6 +3,7 @@ package d2prox
 import (
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/johanhenriksson/d2prox/ip"
 )
@@ -147,6 +148,13 @@ func (c *BnetClient) handleLogonRealmEx(packet LogonRealmExPacket) {
 // HandleClient packet
 func (c *BnetClient) HandleClient(packet Packet) Packet {
 	switch packet.BnetMsgID() {
+	case SidAuthCheck:
+		// extract cdkey hash
+		auth := BnetAuthCheckPacket(packet)
+		keyhash := auth.KeysHash()
+		c.Session.KeyHash = keyhash
+		c.Proxy.Log("Key hash: %s", keyhash)
+
 	case SidLogonResponse2:
 		// extract account name
 		name := string(packet[32:])
@@ -155,6 +163,18 @@ func (c *BnetClient) HandleClient(packet Packet) Packet {
 		if session, exists := accountSessions[name]; exists {
 			c.Session = session
 			c.Proxy.Log("retrieved previous session for %s", name)
+
+			past1h := 0
+			past12h := 0
+			for _, game := range c.Session.Games {
+				since := time.Now().Sub(game.Start)
+				if since < time.Hour {
+					past1h++
+				}
+				if since < 12*time.Hour {
+					past12h++
+				}
+			}
 		} else {
 			c.Session = NewGameSession(name)
 			accountSessions[name] = c.Session

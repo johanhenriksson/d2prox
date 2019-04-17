@@ -13,6 +13,7 @@ const JoinGameOk = 0x00
 //
 
 const SidAuthInfo = 0x50
+const SidAuthCheck = 0x51
 const SidLogonResponse2 = 0x3A
 const SidLogonRealmEx = 0x3E
 
@@ -25,7 +26,7 @@ const McpCreateGame = 0x03
 const McpJoinGame = 0x04
 
 //
-//
+// unit type
 //
 
 type UnitType int
@@ -38,7 +39,41 @@ const UnitTypeItem = UnitType(0x04)
 const UnitTypeWarp = UnitType(0x05)
 
 //
-// unit quality
+// player class
+//
+
+type PlayerClass int
+
+const ClassAmazon = PlayerClass(0x00)
+const ClassSorceress = PlayerClass(0x01)
+const ClassNecromancer = PlayerClass(0x2)
+const ClassPaladin = PlayerClass(0x03)
+const ClassBarbarian = PlayerClass(0x4)
+const ClassDruid = PlayerClass(0x5)
+const ClassAssassin = PlayerClass(0x6)
+
+func (c PlayerClass) String() string {
+	switch c {
+	case ClassAmazon:
+		return "Amazon"
+	case ClassSorceress:
+		return "Sorceress"
+	case ClassNecromancer:
+		return "Necromancer"
+	case ClassPaladin:
+		return "Paladin"
+	case ClassBarbarian:
+		return "Barbarian"
+	case ClassDruid:
+		return "Druid"
+	case ClassAssassin:
+		return "Assassin"
+	}
+	return fmt.Sprintf("Unknown (%d)", c)
+}
+
+//
+// item quality
 //
 
 type Quality int
