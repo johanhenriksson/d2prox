@@ -82,17 +82,6 @@ func (c *ProxyClient) Connect(target string) error {
 	return nil
 }
 
-// OnAccept is fired immediately after a client connects to the proxy
-// Should only be called by the server Accept() function
-func (c *ProxyClient) OnAccept() {}
-
-// OnConnect is fired immediately after a connection to the remote server is established
-// Should only be called by the proxy session handler
-func (c *ProxyClient) OnConnect() {}
-
-// OnClose is fired immediately after a session is disconnected from the server or client
-func (c *ProxyClient) OnClose() {}
-
 // Close the proxy session
 func (c *ProxyClient) Close() {
 	if c.client != nil {
@@ -108,8 +97,19 @@ func (c *ProxyClient) Close() {
 }
 
 //
-// nop packet handlers
+// event handlers
 //
+
+// OnAccept is fired immediately after a client connects to the proxy
+// Should only be called by the server Accept() function
+func (c *ProxyClient) OnAccept() {}
+
+// OnConnect is fired immediately after a connection to the remote server is established
+// Should only be called by the proxy session handler
+func (c *ProxyClient) OnConnect() {}
+
+// OnClose is fired immediately after a session is disconnected from the server or client
+func (c *ProxyClient) OnClose() {}
 
 // HandleBuffered packets
 func (c *ProxyClient) HandleBuffered(packet Packet) Packet { return packet }

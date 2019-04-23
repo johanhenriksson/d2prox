@@ -14,7 +14,7 @@ type GameSession struct {
 	AccountName   string
 	CharacterName string
 	Game          *Game
-	Games         []*Game
+	Games         GameList
 	Start         time.Time
 	Debug         bool
 }
@@ -24,7 +24,7 @@ func NewGameSession(accountName string) *GameSession {
 	return &GameSession{
 		AccountName: accountName,
 		Start:       time.Now(),
-		Games:       make([]*Game, 0, 32),
+		Games:       make(GameList, 0, 32),
 	}
 }
 

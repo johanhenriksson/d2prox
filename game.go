@@ -13,6 +13,8 @@ const GamePort = 4000
 
 var gameSessions = map[string]*GameSession{}
 
+type GameList []*Game
+
 // Game represents the state of a game session
 type Game struct {
 	Start      time.Time
