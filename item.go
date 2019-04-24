@@ -65,7 +65,7 @@ func (i *Item) String() string {
 	return strings.Join(parts, " ")
 }
 
-func ParseItem(packet Packet) *Item {
+func ParseItemPacket(packet Packet) *Item {
 	//fmt.Println(hex.Dump(packet))
 
 	item := &Item{
@@ -312,7 +312,7 @@ func ParseItem(packet Packet) *Item {
 			break
 		}
 
-		stat := ParseStat(statID, r)
+		stat := parseItemStat(statID, r)
 		fmt.Println(stat)
 		item.Stats = append(item.Stats, stat)
 	}
@@ -321,6 +321,7 @@ func ParseItem(packet Packet) *Item {
 	return item
 }
 
+// Stat is an item stat value
 type Stat struct {
 	*StatProperty
 	ID         int
@@ -338,7 +339,7 @@ type Stat struct {
 	Length     int
 }
 
-func ParseStat(id int, r *BitField) Stat {
+func parseItemStat(id int, r *BitField) Stat {
 	p := StatProperties[id]
 	stat := Stat{
 		StatProperty: p,

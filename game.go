@@ -13,6 +13,7 @@ const GamePort = 4000
 
 var gameSessions = map[string]*GameSession{}
 
+// GameList is a slice of game pointers
 type GameList []*Game
 
 // Game represents the state of a game session
@@ -274,7 +275,7 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 		attr := pb.Byte(1)
 		value := pb.Byte(2)
 		c.Player.Stats[attr] = value
-		if name, exists := Attrs[attr]; exists {
+		if name, exists := StatNames[attr]; exists {
 			fmt.Println(name, "=", value)
 			return packet
 		}
@@ -283,7 +284,7 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 		attr := pb.Byte(1)
 		value := pb.Uint16(2)
 		c.Player.Stats[attr] = value
-		if name, exists := Attrs[attr]; exists {
+		if name, exists := StatNames[attr]; exists {
 			fmt.Println(name, "=", value)
 			return packet
 		}
@@ -292,7 +293,7 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 		attr := pb.Byte(1)
 		value := pb.Uint32(2)
 		c.Player.Stats[attr] = value
-		if name, exists := Attrs[attr]; exists {
+		if name, exists := StatNames[attr]; exists {
 			fmt.Println(name, "=", value)
 			return packet
 		}
@@ -319,13 +320,13 @@ func (c *GameClient) HandleServer(packet Packet) Packet {
 	//
 
 	case GsItemActionOwned:
-		item := ParseItem(packet)
+		item := ParseItemPacket(packet)
 		action := ItemAction(pb.Byte(1))
 		c.Proxy.Log("OwnedItem - %s action: %s", item, action)
 		return packet
 
 	case GsItemActionWorld:
-		item := ParseItem(packet)
+		item := ParseItemPacket(packet)
 		action := ItemAction(pb.Byte(1))
 		c.Proxy.Log("WorldItem - %s action: %s", item, action)
 		switch action {
@@ -483,21 +484,4 @@ func (c *GameClient) SendChat(message string) {
 	packet.Put(10+len(nickbytes)+1, msgbytes)
 
 	c.WriteClient(Packet(packet))
-}
-
-var Attrs = map[int]string{
-	0:  "strength",
-	1:  "energy",
-	2:  "dexterity",
-	3:  "vitality",
-	4:  "statpts",
-	5:  "newskills",
-	6:  "hitpoints",
-	7:  "maxhp",
-	8:  "mana",
-	9:  "maxmana",
-	10: "stamina",
-	11: "maxstamina",
-	12: "level",
-	13: "experience",
 }
