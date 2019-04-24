@@ -38,7 +38,8 @@ func (p *BnetProxy) Accept(conn net.Conn) {
 			Proxy:  p,
 			client: conn,
 		},
-		Bnet: p,
+		Session: NewGameSession(),
+		Bnet:    p,
 	}
 
 	// read first protocol byte to choose session handler
@@ -161,6 +162,10 @@ func (c *BnetClient) HandleClient(packet Packet) Packet {
 
 		// look up or create new game session
 		if session, exists := accountSessions[name]; exists {
+			// copy current key hash
+			session.KeyHash = c.Session.KeyHash
+
+			// update client session
 			c.Session = session
 			c.Proxy.Log("retrieved previous session for %s", name)
 
@@ -176,8 +181,12 @@ func (c *BnetClient) HandleClient(packet Packet) Packet {
 				}
 			}
 		} else {
-			c.Session = NewGameSession(name)
+			// store account name
+			c.Session.AccountName = name
+
+			// store session in account-session mapping
 			accountSessions[name] = c.Session
+
 			c.Proxy.Log("started new session for %s", name)
 		}
 	}

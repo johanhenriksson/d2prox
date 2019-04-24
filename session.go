@@ -20,11 +20,10 @@ type GameSession struct {
 }
 
 // NewGameSession initializes a new game session
-func NewGameSession(accountName string) *GameSession {
+func NewGameSession() *GameSession {
 	return &GameSession{
-		AccountName: accountName,
-		Start:       time.Now(),
-		Games:       make(GameList, 0, 32),
+		Start: time.Now(),
+		Games: make(GameList, 0, 32),
 	}
 }
 
