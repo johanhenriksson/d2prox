@@ -57,22 +57,11 @@ func (p *BnetProxy) Accept(conn net.Conn) {
 	switch protocolPacket.Byte(0) {
 	case 0x01: // Battle.net Chat
 		c.Proxy.Log("bncs session")
-		p.handleBnetSession(c)
+		HandleProxySession(p, c, PacketReader(bnetPacketLength), PacketReader(bnetPacketLength))
 	case 0x02: // BNFTP
 		c.Proxy.Log("bnftp session")
-		p.handleBnetFtpSession(c)
+		HandleProxySession(p, &BnetFtpClient{BnetClient: c}, StreamReader, StreamReader)
 	}
-}
-
-func (p *BnetProxy) handleBnetSession(client *BnetClient) {
-	HandleProxySession(p, client, PacketReader(bnetPacketLength), PacketReader(bnetPacketLength))
-}
-
-func (p *BnetProxy) handleBnetFtpSession(client *BnetClient) {
-	ftpClient := &BnetFtpClient{
-		BnetClient: client,
-	}
-	HandleProxySession(p, ftpClient, StreamReader, StreamReader)
 }
 
 // bnetPacketLength computes the length of the next packet in the buffer
@@ -154,7 +143,7 @@ func (c *BnetClient) HandleClient(packet Packet) Packet {
 		auth := BnetAuthCheckPacket(packet)
 		keyhash := auth.KeysHash()
 		c.Session.KeyHash = keyhash
-		c.Proxy.Log("Key hash: %s", keyhash)
+		c.Proxy.Log("key hash: %s", keyhash)
 
 	case SidLogonResponse2:
 		// extract account name

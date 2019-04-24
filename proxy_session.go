@@ -1,6 +1,9 @@
 package d2prox
 
-import "time"
+import (
+	"io"
+	"time"
+)
 
 // HandleProxySession is the main
 func HandleProxySession(p Proxy, c Client, clientReader, serverReader PacketStreamReader) {
@@ -17,7 +20,10 @@ func HandleProxySession(p Proxy, c Client, clientReader, serverReader PacketStre
 		select {
 		// abort on errors
 		case err := <-errs:
-			p.Log("read error: %s", err)
+			if err != io.EOF {
+				// dump non-eof errors
+				p.Log("read error: %s", err)
+			}
 			return
 
 		// receive client -> server packets
@@ -41,7 +47,10 @@ func HandleProxySession(p Proxy, c Client, clientReader, serverReader PacketStre
 		select {
 		// abort on errors
 		case err := <-errs:
-			p.Log("read error: %s", err)
+			if err != io.EOF {
+				// dump non-eof errors
+				p.Log("read error: %s", err)
+			}
 			return
 
 		// receive client -> server packets

@@ -36,10 +36,10 @@ func Serve(p Proxy) {
 	for {
 		in, err := listener.Accept()
 		if err != nil {
-			p.Log("failed to accept socket")
+			p.Log("failed to accept: %s", err)
 			return
 		}
-		p.Log("accepted client")
+		p.Log("accepted client from %s", in.RemoteAddr().String())
 		go p.Accept(in)
 	}
 }
