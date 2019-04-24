@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
-	"time"
+
+	"github.com/augustoroman/v8"
 
 	"github.com/johanhenriksson/d2prox"
 	"github.com/johanhenriksson/d2prox/ip"
@@ -32,6 +34,14 @@ func main() {
 		Log("running in public mode. ip address resolved to %s", ip)
 	}
 
+	// v8 setup
+	ctx := v8.NewIsolate().NewContext()
+	printFn := ctx.Bind("print", func(args v8.CallbackArgs) (*v8.Value, error) {
+		fmt.Println(args.Arg(0).String())
+		return nil, nil
+	})
+	ctx.Global().Set("print", printFn)
+
 	// set up battle.net proxy
 	bnet := d2prox.NewBnet(realmHost)
 	go d2prox.Serve(bnet)
@@ -44,10 +54,16 @@ func main() {
 	game := d2prox.NewGame()
 	go d2prox.Serve(game)
 
-	// wait forever.
-	// todo: console command loop
+	reader := bufio.NewReader(os.Stdin)
 	for {
-		time.Sleep(100 * time.Millisecond)
+		text, _ := reader.ReadString('\n')
+
+		val, err := ctx.Eval(text, "stdin")
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			fmt.Println(val)
+		}
 	}
 }
 
