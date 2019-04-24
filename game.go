@@ -1,7 +1,6 @@
 package d2prox
 
 import (
-	"encoding/hex"
 	"fmt"
 	"net"
 	"strings"
@@ -18,17 +17,7 @@ type GameList []*Game
 
 // Game represents the state of a game session
 type Game struct {
-	Start      time.Time
-	Difficulty int
-	Ladder     bool
-	Hardcore   bool
-	Expansion  bool
-	ExpGained  int
-	Players    PlayerMap
-	NPCs       NPCMap
-	Objects    ObjectMap
-	Items      ItemMap
-	Warps      WarpMap
+	Start time.Time
 }
 
 // GameProxy implements the game server proxy
@@ -53,13 +42,7 @@ func (p *GameProxy) Accept(conn net.Conn) {
 			Proxy:  p,
 			client: conn,
 		},
-		Game: &Game{
-			Players: make(PlayerMap),
-			NPCs:    make(NPCMap),
-			Objects: make(ObjectMap),
-			Items:   make(ItemMap),
-			Warps:   make(WarpMap),
-		},
+		Game: &Game{},
 	}
 	HandleProxySession(p, c, PacketReader(gsClientPacketLength), PacketReader(gsServerPacketLength))
 }
@@ -69,8 +52,6 @@ type GameClient struct {
 	*ProxyClient
 	Session *GameSession
 	Game    *Game
-	Player  *Player
-	Ready   bool
 }
 
 // OnAccept is fired immediately after a client connects to the proxy
@@ -93,266 +74,17 @@ func (c *GameClient) OnClose() {
 
 // HandleServer packets
 func (c *GameClient) HandleServer(packet Packet) Packet {
-	pb := PacketBuffer(packet)
-
 	switch packet.GsMsgID() {
 	case GsConnectionInfo:
 		// silence ConnectionInfo, since we send it manually in OnAccept()
 		return nil
 
-	case GsGameFlags:
-		c.Game.Start = time.Now()
-		c.Game.Difficulty = pb.Byte(1)
-		if pb.Byte(6) != 0 {
-			c.Game.Expansion = true
-		}
-		if pb.Byte(7) != 0 {
-			c.Game.Ladder = true
-		}
-		fmt.Println("hardcore:", pb.Uint16(4))
-		return packet
-
 	case GsHandshake:
-		id := pb.Uint32(2)
-		// set local player reference
-		c.Player = c.Game.Players[id]
+		c.Game.Start = time.Now()
 		c.Session.Game = c.Game
 		c.Session.Games = append(c.Session.Games, c.Game)
 		c.SendChat(fmt.Sprintf("game %d joined", len(c.Session.Games)))
 		return packet
-
-	case GsPlayerInGame:
-		id := pb.Uint32(3)
-		class := pb.Byte(7)
-		name := pb.NullString(8)
-		c.Proxy.Log("player %s [%x] joined game. class: %d", name, id, class)
-		if id == c.Player.ID {
-			// its me! this means we're all ready
-			c.Ready = true
-			c.Game.ExpGained = 0
-		}
-		return packet
-
-	//
-	// player updates
-	//
-
-	case GsAssignPlayer:
-		player := &Player{
-			ID:    pb.Uint32(1),
-			Name:  pb.NullString(6),
-			Class: PlayerClass(pb.Byte(5)),
-			Stats: make(map[int]int),
-			Position: Vec2{
-				X: pb.Uint16(22),
-				Y: pb.Uint16(24),
-			},
-		}
-		c.Game.Players[player.ID] = player
-		return packet
-
-	case GsPlayerMove:
-		id := pb.Uint32(2)
-		if player, exists := c.Game.Players[id]; exists {
-			player.Position.X = pb.Uint16(12)
-			player.Position.Y = pb.Uint16(14)
-		}
-		return packet
-
-	case GsPlayerStop:
-		id := pb.Uint32(2)
-		if player, exists := c.Game.Players[id]; exists {
-			player.Position.X = pb.Uint16(7)
-			player.Position.Y = pb.Uint16(9)
-		}
-		return packet
-
-	//
-	// npc updates
-	//
-
-	case GsAssignNPC:
-		npc := &NPC{
-			ID:    pb.Uint32(1),
-			Class: pb.Uint16(5),
-			Life:  pb.Byte(11),
-			Position: Vec2{
-				X: pb.Uint16(7),
-				Y: pb.Uint16(9),
-			},
-		}
-		npc.NPCType = NPCTypeIDs[npc.Class]
-		c.Game.NPCs[npc.ID] = npc
-		return packet
-
-	case GsNPCMove:
-		id := pb.Uint32(1)
-		if npc, exists := c.Game.NPCs[id]; exists {
-			npc.Position.X = pb.Uint16(6)
-			npc.Position.Y = pb.Uint16(8)
-		} else {
-			fmt.Println("NPCMove: Unknown NPC")
-		}
-		return packet // silent
-
-	case GsNPCStop:
-		id := pb.Uint32(1)
-		if npc, exists := c.Game.NPCs[id]; exists {
-			npc.Position.X = pb.Uint16(5)
-			npc.Position.Y = pb.Uint16(7)
-			npc.Life = pb.Byte(9)
-		} else {
-			fmt.Println("NPCMove: Unknown NPC")
-		}
-		return packet // silent
-
-	case GsNPCHit:
-		id := pb.Uint32(2)
-		if npc, exists := c.Game.NPCs[id]; exists {
-			npc.Life = pb.Byte(8)
-		} else {
-			fmt.Println("NPCMove: Unknown NPC")
-		}
-		return packet
-
-	//
-	// object updates
-	//
-
-	case GsAssignObject:
-		object := &Object{
-			ID:   pb.Uint32(2),
-			Type: pb.Byte(1),
-			Code: pb.Uint16(6),
-			Position: Vec2{
-				X: pb.Uint16(8),
-				Y: pb.Uint16(10),
-			},
-		}
-		c.Game.Objects[object.ID] = object
-		return packet
-
-	case GsAssignLevelWarp:
-		warp := &Warp{
-			ID:      pb.Uint32(2),
-			Type:    pb.Byte(1),
-			ClassID: pb.Byte(6),
-			Position: Vec2{
-				X: pb.Uint16(7),
-				Y: pb.Uint16(9),
-			},
-		}
-		c.Game.Warps[warp.ID] = warp
-		fmt.Println("Assign warp", warp)
-		return packet
-
-	case GsRemoveObject:
-		kind := UnitType(pb.Byte(1))
-		id := pb.Uint32(2)
-		switch kind {
-		case UnitTypePlayer:
-			delete(c.Game.Players, id)
-		case UnitTypeNPC:
-			delete(c.Game.NPCs, id)
-		case UnitTypeObject:
-			delete(c.Game.Objects, id)
-		case UnitTypeItem:
-			delete(c.Game.Items, id)
-		default:
-			c.Proxy.Log("remove item %d (type: %d)", id, kind)
-		}
-		return packet
-
-	case GsReportKill:
-		return packet
-
-	case GsPlayerLeft:
-		id := pb.Uint32(1)
-		delete(c.Game.Players, id)
-
-	// set attributes
-	case GsSetAttr8:
-		attr := pb.Byte(1)
-		value := pb.Byte(2)
-		c.Player.Stats[attr] = value
-		if name, exists := StatNames[attr]; exists {
-			fmt.Println(name, "=", value)
-			return packet
-		}
-
-	case GsSetAttr16:
-		attr := pb.Byte(1)
-		value := pb.Uint16(2)
-		c.Player.Stats[attr] = value
-		if name, exists := StatNames[attr]; exists {
-			fmt.Println(name, "=", value)
-			return packet
-		}
-
-	case GsSetAttr32:
-		attr := pb.Byte(1)
-		value := pb.Uint32(2)
-		c.Player.Stats[attr] = value
-		if name, exists := StatNames[attr]; exists {
-			fmt.Println(name, "=", value)
-			return packet
-		}
-
-	case GsLifeManaUpdate:
-		src := pb.Uint32(1)
-		c.Player.Health = (src & 0x00007FFF)
-		c.Player.Mana = (src & 0x3FFF8000) >> 15
-		return packet
-
-	// experience
-	case GsAddExp8:
-		exp := pb.Byte(1)
-		c.Game.ExpGained += exp
-	case GsAddExp16:
-		exp := pb.Uint16(1)
-		c.Game.ExpGained += exp
-	case GsAddExp32:
-		exp := pb.Uint32(1)
-		c.Game.ExpGained += exp
-
-	//
-	// items
-	//
-
-	case GsItemActionOwned:
-		item := ParseItemPacket(packet)
-		action := ItemAction(pb.Byte(1))
-		c.Proxy.Log("OwnedItem - %s action: %s", item, action)
-		return packet
-
-	case GsItemActionWorld:
-		item := ParseItemPacket(packet)
-		action := ItemAction(pb.Byte(1))
-		c.Proxy.Log("WorldItem - %s action: %s", item, action)
-		switch action {
-		case ItemActionDrop:
-			c.Game.Items[item.ID] = item
-		}
-		return packet
-
-	case GsWardenRequest:
-		c.SendChat("warden request detected")
-		c.Proxy.Log("Warden Request")
-		fmt.Println(hex.Dump(packet))
-		return packet
-
-	//
-	// other
-	//
-
-	case GsRelator1:
-		return packet
-
-	case GsRelator2:
-		return packet
-
-	case GsPong:
-		return packet // silent
 	}
 
 	if c.Session.Debug {
@@ -415,21 +147,9 @@ func (c *GameClient) handleGameLogon(packet GsGameLogonPacket) GsGameLogonPacket
 
 // HandleClient packets
 func (c *GameClient) HandleClient(packet Packet) Packet {
-	pb := PacketBuffer(packet)
-
 	switch packet.GsMsgID() {
 	case GsChatMessage:
 		return Packet(c.handleChatMessage(GsChatMessagePacket(packet)))
-
-	case GsPickupItem:
-		id := pb.Uint32(5)
-		c.Proxy.Log("Pickup item %x", id)
-		return packet
-
-	case GsDropItem:
-		id := pb.Uint32(1)
-		c.Proxy.Log("Drop item %x", id)
-		return packet
 
 	case GsPing:
 		return packet // silent
@@ -451,8 +171,6 @@ func (c *GameClient) handleChatMessage(packet GsChatMessagePacket) GsChatMessage
 		}
 
 		switch command {
-		case "exp":
-			c.SendChat(fmt.Sprintf("Experience gained: %d", c.Game.ExpGained))
 		case "debug":
 			c.Session.Debug = !c.Session.Debug
 			if c.Session.Debug {
