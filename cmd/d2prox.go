@@ -24,12 +24,12 @@ func main() {
 		Log("running in local mode.")
 	} else {
 		// resolve public IP
-		ip, err := ip.ResolvePublicIP()
+		_, err := ip.ResolvePublicIP()
 		if err != nil {
 			Log("Error resolving public IP address!")
 			return
 		}
-		Log("running in public mode. ip address resolved to %s", ip)
+		Log("running in public mode. ip address resolved to %s", ip.Public())
 	}
 
 	// set up battle.net proxy

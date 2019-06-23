@@ -15,7 +15,10 @@ func ResolvePublicIP() (net.IP, error) {
 		return nil, err
 	}
 	ipstr, err := ioutil.ReadAll(res.Body)
-	return net.ParseIP(string(ipstr)), nil
+	if err == nil {
+		publicIP = net.ParseIP(string(ipstr)).To4()
+	}
+	return publicIP, err
 }
 
 // Public returns the latest known public ip. If its not yet resolved, loopback will be returned.

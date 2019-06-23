@@ -1,6 +1,7 @@
 version: '2.0'
 services:
   proxy:
+    image: 'johanhenriksson/d2prox'
     build: './'
     ports:
       - '6112:6112'
